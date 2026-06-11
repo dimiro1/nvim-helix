@@ -67,6 +67,7 @@ with `:lua vim.pack.update()`, review the diff, `:write` to confirm.
 | `if`/`af` `ic`/`ac` `ia`/`aa` | function / type / argument text objects |
 | `ys` `cs` `ds` | surround (tpope) |
 | `Space G` | toggle inline git diff overlay (mini.diff) |
+| `Space l` / `Space L` / `:Permalink [open]` | copy / browse a git permalink — commit-pinned URL to the current file and line (range in visual mode) on GitHub/GitLab/Codeberg; warns when uncommitted changes make it stale |
 | `Ctrl-\` | toggle floating terminal (`Esc Esc` leaves terminal mode) |
 
 Everything else is stock Vim. Pressing `Space`, `g`, `z`, `Ctrl-w`, `[`, `]`

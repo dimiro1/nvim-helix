@@ -73,6 +73,22 @@ M.specs = {
     end,
     'Toggle git diff overlay',
   },
+  {
+    { 'n', 'x' },
+    '<Leader>l',
+    function()
+      require('config.permalink').copy()
+    end,
+    'Copy git permalink',
+  },
+  {
+    { 'n', 'x' },
+    '<Leader>L',
+    function()
+      require('config.permalink').open()
+    end,
+    'Open git permalink in browser',
+  },
 
   -- Floating terminal
   {
