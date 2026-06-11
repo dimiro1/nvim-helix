@@ -1,5 +1,5 @@
--- :KillPort — kill the process listening on a TCP port (ADR 0004, native:
--- lsof + ps for lookup, vim.uv.kill to terminate, vim.ui.select when
+-- :KillPort — kill the process listening on a TCP port (lsof + ps for
+-- lookup, vim.uv.kill to terminate, vim.ui.select when
 -- several listen). Only LISTEN-state sockets match, so a process merely
 -- connected to the port (a browser on :3000) is never offered as a target.
 local M = {}

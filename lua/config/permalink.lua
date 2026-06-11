@@ -1,7 +1,6 @@
 -- Git permalinks: commit-pinned, line-anchored URLs to the current file on
 -- its hosting platform — copy to the system clipboard or open in the
--- browser (native vim.ui.open, ADR 0004). Port of the user's Emacs
--- d1-git-permalink.el. Host specs are data and URL assembly is pure, so
+-- browser (native vim.ui.open). Host specs are data and URL assembly is pure, so
 -- everything up to the git calls tests without a repository.
 local M = {}
 

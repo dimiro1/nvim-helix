@@ -46,11 +46,11 @@ vim.api.nvim_create_autocmd('OptionSet', {
   end,
 })
 
--- What a workspace session captures (ADR 0005); 'terminal' deliberately
+-- What a workspace session captures; 'terminal' deliberately
 -- excluded for clean restores.
 o.sessionoptions = 'blank,buffers,curdir,folds,help,tabpages,winsize'
 
--- Native as-you-type completion (ADR 0004): LSP first via the 'o' source
+-- Native as-you-type completion: LSP first via the 'o' source
 -- ('omnifunc' is vim.lsp.omnifunc on attached buffers), then buffer words.
 -- ^N caps candidates per source.
 o.autocomplete = true

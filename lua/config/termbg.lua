@@ -4,7 +4,7 @@
 -- reported default background, not from the colors apps paint on cells,
 -- so without this the tabs keep the terminal's own background. OSC 111
 -- hands the choice back to the terminal (exit, suspend, schemes without
--- a background). Native autocmds, no plugin (ADR 0004).
+-- a background).
 local M = {}
 
 -- OSC 11 set-default-background for a 24-bit highlight color; nil when

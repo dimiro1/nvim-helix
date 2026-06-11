@@ -1,4 +1,4 @@
--- The Helix keymap as data (ADR 0002): Helix owns Space mode and LSP gotos;
+-- The Helix keymap as data: Helix owns Space mode and LSP gotos;
 -- Vim owns the grammar. Tree-sitter objects/moves are Vim-idiomatic
 -- additions. ]t/[t and ]a/[a deliberately shadow Neovim's tag/arglist
 -- defaults: Helix's type/argument navigation is a named project goal.
@@ -22,7 +22,7 @@ local function move(dir, query)
   end
 end
 
--- mini.ai textobject with its module-wide i/a remap disabled (ADR 0002), so
+-- mini.ai textobject with its module-wide i/a remap disabled, so
 -- the operator-pending plumbing its own mappings would do is replicated
 -- here: pass the forced-motion mode (v/V/<C-v> typed after an operator) and
 -- the count through to select_textobject.
@@ -126,8 +126,8 @@ M.specs = {
   { 'n', 'gi', pick('implementations'), 'Goto implementation' },
   { 'n', 'gr', pick('references'), 'Goto references' },
 
-  -- Goto mode: word jump labels (helix gw; shadows Vim's gw format
-  -- operator — documented exception in ADR 0002)
+  -- Goto mode: word jump labels (helix gw; deliberately shadows Vim's
+  -- gw format operator)
   {
     { 'n', 'x' },
     'gw',
@@ -165,7 +165,7 @@ M.specs = {
 
 -- Neovim ships a growing family of gr* LSP defaults (gra gri grn grr grt
 -- grx as of 0.12). Any survivor keeps Helix's `gr` ambiguous behind a
--- timeout, so sweep the whole prefix instead of naming versions (ADR 0002).
+-- timeout, so sweep the whole prefix instead of naming versions.
 function M.remove_default_gr_family()
   for _, mode in ipairs({ 'n', 'x' }) do
     for _, map in ipairs(vim.api.nvim_get_keymap(mode)) do

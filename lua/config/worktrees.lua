@@ -1,4 +1,4 @@
--- Worktree workspaces (ADR 0005): each git worktree owns a saved editing
+-- Worktree workspaces: each git worktree owns a saved editing
 -- state — buffers, windows, tabs (a Workspace, see CONTEXT.md). Switching
 -- saves the current workspace via :mksession and restores the target's;
 -- first visit opens the file picker. Switch-only by design: creating and

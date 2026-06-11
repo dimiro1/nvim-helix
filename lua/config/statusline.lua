@@ -1,4 +1,4 @@
--- Hand-rolled statusline (ADR 0004) mirroring the user's Helix statusline:
+-- Hand-rolled statusline mirroring the user's Helix statusline:
 -- left = mode + git branch, center = file name + modified/read-only flags,
 -- right = workspace diagnostics, buffer diagnostics, position, encoding,
 -- line ending, file type. Mode segment is colored (helix color-modes).

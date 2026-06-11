@@ -1,4 +1,4 @@
--- Floating terminal toggle (ADR 0004, native): one reusable :terminal
+-- Floating terminal toggle: one reusable :terminal
 -- buffer in a centered float. Ctrl-\ toggles from normal and terminal
 -- mode; Esc Esc leaves terminal-mode.
 local M = {}
