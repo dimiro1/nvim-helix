@@ -94,26 +94,36 @@ T['sync falls back to OSC 111 when the scheme has no background'] = function()
     vim.api.nvim_list_uis = function() return { { stdout_tty = true } } end
     termbg.write = function(seq) captured = seq end
     local returned = termbg.sync()
+    local owed = termbg.reset()
     vim.api.nvim_list_uis, termbg.write = uis, write
-    return { returned = returned, captured = captured }
+    return { returned = returned, captured = captured, owed_is_nil = owed == nil }
   end)()]])
   eq(r.returned, termbg.osc_reset)
   eq(r.captured, termbg.osc_reset)
+  -- the terminal is already at its default: nothing left to undo
+  eq(r.owed_is_nil, true)
 end
 
-T['reset writes OSC 111 once a tty UI is attached'] = function()
+T['reset still writes OSC 111 on exit, after the UI is gone'] = function()
+  -- UILeave fires after the UI detaches, so reset must not depend on
+  -- nvim_list_uis(); it undoes whatever sync() last wrote.
   local r = child.lua_get([[(function()
     local termbg = require('config.termbg')
-    local captured
+    local captured = {}
     local uis, write = vim.api.nvim_list_uis, termbg.write
     vim.api.nvim_list_uis = function() return { { stdout_tty = true } } end
-    termbg.write = function(seq) captured = seq end
+    termbg.write = function(seq) table.insert(captured, seq) end
+    termbg.sync()
+    vim.api.nvim_list_uis = uis -- the embedded child really has no UIs
     local returned = termbg.reset()
-    vim.api.nvim_list_uis, termbg.write = uis, write
-    return { returned = returned, captured = captured }
+    local again = termbg.reset()
+    termbg.write = write
+    return { returned = returned, again_is_nil = again == nil, captured = captured }
   end)()]])
   eq(r.returned, termbg.osc_reset)
-  eq(r.captured, termbg.osc_reset)
+  eq(r.captured[2], termbg.osc_reset)
+  -- one-shot: the second reset has nothing to undo
+  eq(r.again_is_nil, true)
 end
 
 T['a colorscheme switch re-reports the new background'] = function()

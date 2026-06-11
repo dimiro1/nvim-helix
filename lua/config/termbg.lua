@@ -37,6 +37,12 @@ local function tui_attached()
   return false
 end
 
+-- Whether a sync() reached the terminal and OSC 111 is owed. reset()
+-- keys off this, not tui_attached(): UILeave fires after the UI has
+-- left nvim_list_uis(), so a UI check would always skip the exit reset
+-- and leave the terminal tinted.
+local applied = false
+
 -- IO seam for tests. Deliberately bypasses the message pipeline: escape
 -- bytes must reach the terminal raw.
 function M.write(seq)
@@ -52,13 +58,17 @@ function M.sync()
   end
   local seq = M.osc_set(M.background()) or M.osc_reset
   M.write(seq)
+  applied = seq ~= M.osc_reset
   return seq
 end
 
+-- One-shot: undoes the sync() that was actually written, including on
+-- exit when no UI is left to check.
 function M.reset()
-  if not tui_attached() then
+  if not applied then
     return nil
   end
+  applied = false
   M.write(M.osc_reset)
   return M.osc_reset
 end
