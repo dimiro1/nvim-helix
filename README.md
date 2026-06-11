@@ -79,7 +79,10 @@ diagnostics with expanded cursor-line rendering, colored `❮N❯/❮I❯/❮V�
 segment with git branch and worktree name (`main (kelowna)`), centered
 filename, rich right-side statusline
 segments, and a bufferline that appears only with 2+ buffers (hand-rolled
-native `'tabline'`). Colorscheme: `miniwinter` (ships with mini.nvim).
+native `'tabline'`). Colorscheme: `melange` (`rose-pine` also installed).
+The scheme's background is reported to the terminal with OSC 11 (and
+reset with OSC 111 on exit/suspend), the same escape Helix emits — so
+Ghostty colors its tabs and titlebar to match the editor theme.
 Known gap: `indent-guides.skip-levels = 1` isn't expressible with
 `listchars` — guides start at column 1.
 
