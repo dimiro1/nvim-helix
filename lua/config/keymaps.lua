@@ -22,6 +22,23 @@ local function move(dir, query)
   end
 end
 
+-- mini.ai textobject with its module-wide i/a remap disabled (ADR 0002), so
+-- the operator-pending plumbing its own mappings would do is replicated
+-- here: pass the forced-motion mode (v/V/<C-v> typed after an operator) and
+-- the count through to select_textobject.
+local function pair_textobject(ai_type, id)
+  return function()
+    local opts = { n_times = vim.v.count1 }
+    local mode = vim.fn.mode(1)
+    if mode:sub(1, 2) == 'no' then
+      local forced = mode:sub(3)
+      opts.operator_pending = true
+      opts.vis_mode = forced == '' and 'v' or forced
+    end
+    require('mini.ai').select_textobject(ai_type, id, opts)
+  end
+end
+
 -- { modes, lhs, rhs, desc, remap = bool }
 M.specs = {
   -- Space mode: pickers
@@ -128,6 +145,14 @@ M.specs = {
   { { 'x', 'o' }, 'ac', textobject('@class.outer'), 'Type (around)' },
   { { 'x', 'o' }, 'ia', textobject('@parameter.inner'), 'Argument (inner)' },
   { { 'x', 'o' }, 'aa', textobject('@parameter.outer'), 'Argument (around)' },
+
+  -- Pattern-based pair text objects (mini.ai): new keys, no stock object
+  -- shadowed — quotes q has no Vim counterpart, m mirrors helix's
+  -- "closest surrounding pair"
+  { { 'x', 'o' }, 'iq', pair_textobject('i', 'q'), 'Quotes (inner)' },
+  { { 'x', 'o' }, 'aq', pair_textobject('a', 'q'), 'Quotes (around)' },
+  { { 'x', 'o' }, 'im', pair_textobject('i', 'm'), 'Surrounding pair (inner)' },
+  { { 'x', 'o' }, 'am', pair_textobject('a', 'm'), 'Surrounding pair (around)' },
 
   -- Unimpaired-style moves between text objects (Helix keys)
   { { 'n', 'x', 'o' }, ']f', move('next_start', '@function.outer'), 'Next function' },

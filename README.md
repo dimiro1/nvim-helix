@@ -65,6 +65,7 @@ with `:lua vim.pack.update()`, review the diff, `:write` to confirm.
 | `]f` `[f` `]t` `[t` `]a` `[a` | next/prev function, type, argument |
 | `]g` `[g` | next/prev git change |
 | `if`/`af` `ic`/`ac` `ia`/`aa` | function / type / argument text objects |
+| `iq`/`aq` `im`/`am` | quotes (any of `"` `'` `` ` ``) / closest surrounding pair text objects (mini.ai; stock `i(`, `ib`, … untouched) |
 | `ys` `cs` `ds` | surround (tpope) |
 | `Space G` | toggle inline git diff overlay (mini.diff) |
 | `Space l` / `Space L` / `:Permalink [open]` | copy / browse a git permalink — commit-pinned URL to the current file and line (range in visual mode) on GitHub/GitLab/Codeberg; warns when uncommitted changes make it stale |

@@ -67,11 +67,54 @@ T['treesitter highlighting starts for configured filetypes'] = function()
   eq(vim.tbl_contains(patterns, 'lua'), true)
 end
 
-T['mini modules are set up: clue, pairs, diff, jump2d'] = function()
+T['mini.clue, mini.pairs, mini.diff, mini.jump2d, mini.ai are set up'] = function()
   eq(child.lua_get([[type(_G.MiniClue)]]), 'table')
   eq(child.lua_get([[type(_G.MiniPairs)]]), 'table')
   eq(child.lua_get([[type(_G.MiniDiff)]]), 'table')
   eq(child.lua_get([[type(_G.MiniJump2d)]]), 'table')
+  eq(child.lua_get([[type(_G.MiniAi)]]), 'table')
+end
+
+T['mini.ai leaves the i/a grammar unshadowed (ADR 0002)'] = function()
+  -- module-wide remaps must stay disabled: only the explicit iq/aq/im/am
+  -- keymaps go through mini.ai; everything else stays stock Vim
+  local shadowed = child.lua_get([[(function()
+    local out = {}
+    for _, mode in ipairs({ 'x', 'o' }) do
+      for _, lhs in ipairs({ 'i', 'a', 'il', 'al' }) do
+        if vim.fn.maparg(lhs, mode) ~= '' then
+          table.insert(out, mode .. ' ' .. lhs)
+        end
+      end
+    end
+    for _, lhs in ipairs({ 'g[', 'g]' }) do
+      if vim.fn.maparg(lhs, 'n') ~= '' then table.insert(out, 'n ' .. lhs) end
+    end
+    return out
+  end)()]])
+  eq(shadowed, {})
+end
+
+T['neovim 0.12 node objects in/an survive: not replaced by mini.ai'] = function()
+  -- in/an are core defaults (select child/parent node); mini.ai's
+  -- inside_next/around_next would sit on the same keys if ever re-enabled
+  for _, mode in ipairs({ 'x', 'o' }) do
+    eq(
+      child.lua_get(([[vim.fn.maparg('in', '%s', false, true).desc]]):format(mode)),
+      'Select child (inner) node'
+    )
+    eq(
+      child.lua_get(([[vim.fn.maparg('an', '%s', false, true).desc]]):format(mode)),
+      'Select parent (outer) node'
+    )
+  end
+end
+
+T['the m textobject is the closest-surrounding-pair alternation'] = function()
+  eq(child.lua_get([[MiniAi.config.custom_textobjects.m]]), {
+    { '%b()', '%b[]', '%b{}', '%b""', "%b''", '%b``' },
+    '^.().*().$',
+  })
 end
 
 T['fzf-lua backs vim.ui.select (code actions et al.)'] = function()
