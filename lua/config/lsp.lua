@@ -1,5 +1,5 @@
--- Hand-rolled server configs (ADR 0003): servers are system binaries on
--- PATH; no lspconfig, no Mason.
+-- Hand-rolled server configs: servers are system binaries on PATH;
+-- no lspconfig, no Mason.
 local M = {}
 
 M.servers = {

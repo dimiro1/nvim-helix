@@ -75,7 +75,7 @@ T['mini.clue, mini.pairs, mini.diff, mini.jump2d, mini.ai are set up'] = functio
   eq(child.lua_get([[type(_G.MiniAi)]]), 'table')
 end
 
-T['mini.ai leaves the i/a grammar unshadowed (ADR 0002)'] = function()
+T['mini.ai leaves the i/a grammar unshadowed'] = function()
   -- module-wide remaps must stay disabled: only the explicit iq/aq/im/am
   -- keymaps go through mini.ai; everything else stays stock Vim
   local shadowed = child.lua_get([[(function()

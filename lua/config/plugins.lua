@@ -1,4 +1,4 @@
--- Plugin set (ADR 0001, 0004): each entry covers something Neovim
+-- Plugin set: each entry covers something Neovim
 -- structurally lacks. Managed by native vim.pack; lockfile is committed.
 local M = {}
 
@@ -7,8 +7,8 @@ M.specs = {
   -- 'main' pins are load-bearing: the default branches are frozen legacy.
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter', version = 'main' },
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter-textobjects', version = 'main' },
-  -- passes the ADR 0004 bar: pinning the enclosing scope while scrolling
-  -- needs a managed overlay window Neovim has no primitive for
+  -- pinning the enclosing scope while scrolling needs a managed overlay
+  -- window Neovim has no primitive for
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter-context' },
   { src = 'https://github.com/tpope/vim-surround' },
   { src = 'https://github.com/tpope/vim-repeat' },
@@ -60,7 +60,7 @@ function M.setup()
   -- Pair textobjects beyond stock Vim: q (nearest quotes of any kind) and
   -- m (helix's "closest surrounding pair"). Only iq/aq/im/am are mapped, in
   -- config.keymaps; the module-wide i/a remap is disabled so stock objects
-  -- (ib, i(, iw, …) keep Vim grammar semantics (ADR 0002).
+  -- (ib, i(, iw, …) keep Vim grammar semantics.
   require('mini.ai').setup({
     custom_textobjects = {
       -- nearest of brackets or quotes; <> excluded (comparison-operator

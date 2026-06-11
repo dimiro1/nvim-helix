@@ -1,7 +1,6 @@
--- Breadcrumbs (ADR 0004, hand-rolled): the chain of named scopes enclosing
--- the cursor — `Type › method` — shown in the statusline center segment
--- next to the file name. (A winbar version was tried and vetoed: it costs
--- a fixed extra line at the top of every window.)
+-- Breadcrumbs: the chain of named scopes enclosing the cursor —
+-- `Type › method` — shown in the statusline center segment next to the
+-- file name.
 local M = {}
 
 M.separator = ' › '

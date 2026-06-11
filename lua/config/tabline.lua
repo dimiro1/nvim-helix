@@ -1,4 +1,4 @@
--- Hand-rolled bufferline (ADR 0004) with helix `bufferline = "multiple"`
+-- Hand-rolled bufferline with helix `bufferline = "multiple"`
 -- semantics: visible only when more than one listed buffer (or any real
 -- tab pages) exist. build() is pure for testability.
 local M = {}

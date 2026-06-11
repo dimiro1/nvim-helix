@@ -26,6 +26,9 @@ The principle that a built-in Neovim capability is used whenever it covers the H
 The auto-appearing panel that lists available continuation keys after a prefix (Space, `g`, `z`, `Ctrl-w`) is pressed. Helix's term; the core discoverability feature of the leader layer.
 _Avoid_: which-key menu, cheatsheet
 
+**Breadcrumbs**:
+The chain of named scopes enclosing the cursor (`Type › method`), rendered in the statusline center segment next to the file name — not in a winbar, which was tried and vetoed because it costs a fixed extra line at the top of every window.
+
 **Workspace**:
 A git worktree root plus its saved editing state (buffers, windows, tabs). Pickers operate at the workspace root; switching worktrees swaps workspaces — leaving saves the state, returning restores it.
 _Avoid_: session (that's the persistence mechanism, not the concept), project

@@ -1,4 +1,4 @@
--- fzf-lua wiring for the Helix picker set (ADR 0001).
+-- fzf-lua wiring for the Helix picker set.
 local M = {}
 
 local function fzf()
