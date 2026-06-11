@@ -1,0 +1,3 @@
+# Language servers are system binaries, configured by hand
+
+Following Helix's philosophy (servers live on your PATH; the editor just speaks to them), LSP uses only Neovim 0.12 built-ins: hand-rolled `vim.lsp.config()` entries for gopls, typescript-language-server, and pyright, enabled via `vim.lsp.enable()`. No nvim-lspconfig (a config database is overkill for three stable servers — and our entries are testable data), no Mason (an installer UI plus parallel bin directory is exactly the machinery Helix doesn't have). Format-on-save is ON for Go only (gopls formatting + organize-imports); JS/TS/Python formatting is deferred to project tooling — no formatter plugin.
