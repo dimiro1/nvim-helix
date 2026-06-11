@@ -29,7 +29,7 @@ plugins or shadow Vim grammar keys need to clear those bars, not just work.
 
 - `init.lua` — entry; makes itself location-independent (tests boot
   `nvim --clean -u init.lua`)
-- `lua/config/{options,plugins,lsp,keymaps,pickers,worktrees,statusline,tabline,breadcrumbs,terminal}.lua`
+- `lua/config/{options,plugins,lsp,keymaps,pickers,worktrees,statusline,tabline,breadcrumbs,terminal,termbg}.lua`
 - `tests/test_*.lua` — one file per module plus behavioral textobject tests
 - The target look mirrors the user's personal Helix `config.toml` (see
   README "Personalization layer"), not stock Helix defaults.
