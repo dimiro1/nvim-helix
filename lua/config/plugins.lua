@@ -14,6 +14,9 @@ M.specs = {
   { src = 'https://github.com/tpope/vim-repeat' },
   -- Modules used: clue (infobox), pairs, diff, test. Nothing else.
   { src = 'https://github.com/nvim-mini/mini.nvim' },
+  -- colorschemes; the repo is named 'neovim', so pin the plugin name
+  { src = 'https://github.com/rose-pine/neovim', name = 'rose-pine' },
+  { src = 'https://github.com/savq/melange-nvim' },
 }
 
 -- Parsers in priority order. lua is bundled with Neovim, but installing
@@ -48,6 +51,8 @@ function M.setup()
   require('treesitter-context').setup({ max_lines = 3 })
 
   require('fzf-lua').setup({})
+  -- vim.ui.select prompts (code actions, …) go through the picker surface
+  require('fzf-lua').register_ui_select()
 
   require('mini.pairs').setup()
 
@@ -71,7 +76,10 @@ function M.setup()
 
   local clue = require('mini.clue')
   clue.setup({
-    window = { delay = 250 }, -- Helix infobox feel: show promptly
+    window = {
+      delay = 250, -- Helix infobox feel: show promptly
+      config = { width = 'auto' }, -- fit the longest clue; default truncates
+    },
     triggers = {
       { mode = 'n', keys = '<Leader>' },
       { mode = 'x', keys = '<Leader>' },
@@ -94,8 +102,8 @@ function M.setup()
     },
   })
 
-  -- ships with mini.nvim (mini.hues), so it can only load after pack.add
-  vim.cmd.colorscheme('miniwinter')
+  -- plugin colorscheme, so it can only load after pack.add
+  vim.cmd.colorscheme('melange')
 end
 
 return M

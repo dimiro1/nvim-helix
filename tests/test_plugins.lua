@@ -11,7 +11,7 @@ local T = MiniTest.new_set({
 
 local eq = MiniTest.expect.equality
 
-T['exactly the seven agreed plugins are active'] = function()
+T['exactly the nine agreed plugins are active'] = function()
   local names = child.lua_get([[(function()
     local out = {}
     for _, p in ipairs(vim.pack.get()) do
@@ -21,8 +21,9 @@ T['exactly the seven agreed plugins are active'] = function()
     return out
   end)()]])
   eq(names, {
-    'fzf-lua', 'mini.nvim', 'nvim-treesitter', 'nvim-treesitter-context',
-    'nvim-treesitter-textobjects', 'vim-repeat', 'vim-surround',
+    'fzf-lua', 'melange-nvim', 'mini.nvim', 'nvim-treesitter',
+    'nvim-treesitter-context', 'nvim-treesitter-textobjects', 'rose-pine',
+    'vim-repeat', 'vim-surround',
   })
 end
 
@@ -73,6 +74,18 @@ T['mini modules are set up: clue, pairs, diff, jump2d'] = function()
   eq(child.lua_get([[type(_G.MiniJump2d)]]), 'table')
 end
 
+T['fzf-lua backs vim.ui.select (code actions et al.)'] = function()
+  eq(
+    child.lua_get([[require('fzf-lua.providers.ui_select').is_registered()]]),
+    true
+  )
+end
+
+T['the infobox window fits clue descriptions'] = function()
+  eq(child.lua_get([[MiniClue.config.window.config.width]]), 'auto')
+  eq(child.lua_get([[MiniClue.config.window.delay]]), 250)
+end
+
 T['jump labels use the colemak alphabet'] = function()
   eq(
     child.lua_get([[MiniJump2d.config.labels]]),
@@ -85,8 +98,17 @@ T['hunk navigation uses helix keys'] = function()
   eq(child.lua_get([[vim.fn.maparg('[g', 'n') ~= '']]), true)
 end
 
-T['the colorscheme is miniwinter'] = function()
-  eq(child.lua_get([[vim.g.colors_name]]), 'miniwinter')
+T['the colorscheme is melange'] = function()
+  eq(child.lua_get([[vim.g.colors_name]]), 'melange')
+end
+
+T['theme plugins provide loadable colorschemes'] = function()
+  for _, name in ipairs({ 'rose-pine', 'melange' }) do
+    eq(
+      child.lua_get(([[pcall(vim.cmd.colorscheme, '%s')]]):format(name)),
+      true
+    )
+  end
 end
 
 T['surround is the tpope flavor'] = function()
