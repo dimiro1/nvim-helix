@@ -28,6 +28,7 @@ Two laws decide everything here (see `CONTEXT.md` and `docs/adr/`):
 | `pyright` | Python LSP | `npm i -g pyright` |
 | `lua-language-server` | Lua LSP (this config itself) | `brew install lua-language-server` |
 | `zoxide` (optional) | recent-dirs picker, `:Z` | `brew install zoxide` |
+| `lsof` | `:KillPort` process lookup | preinstalled on macOS/Linux |
 
 ## Install
 
@@ -70,6 +71,13 @@ with `:lua vim.pack.update()`, review the diff, `:write` to confirm.
 
 Everything else is stock Vim. Pressing `Space`, `g`, `z`, `Ctrl-w`, `[`, `]`
 pops a Helix-style infobox (mini.clue) listing the continuations.
+
+## Utility commands
+
+`:KillPort [port]` — kill the process listening on a TCP port. Prompts for
+the port when omitted, offers a picker when several processes listen, and
+confirms before sending SIGKILL. Only LISTEN-state sockets match, so a
+process merely connected to the port is never offered as a target.
 
 ## Personalization layer
 
