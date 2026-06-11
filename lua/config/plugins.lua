@@ -12,7 +12,8 @@ M.specs = {
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter-context' },
   { src = 'https://github.com/tpope/vim-surround' },
   { src = 'https://github.com/tpope/vim-repeat' },
-  -- Modules used: clue (infobox), pairs, diff, test. Nothing else.
+  -- Modules used: mini.clue (infobox), mini.pairs, mini.diff, mini.jump2d,
+  -- mini.ai, mini.test. Nothing else.
   { src = 'https://github.com/nvim-mini/mini.nvim' },
   -- colorschemes; the repo is named 'neovim', so pin the plugin name
   { src = 'https://github.com/rose-pine/neovim', name = 'rose-pine' },
@@ -55,6 +56,28 @@ function M.setup()
   require('fzf-lua').register_ui_select()
 
   require('mini.pairs').setup()
+
+  -- Pair textobjects beyond stock Vim: q (nearest quotes of any kind) and
+  -- m (helix's "closest surrounding pair"). Only iq/aq/im/am are mapped, in
+  -- config.keymaps; the module-wide i/a remap is disabled so stock objects
+  -- (ib, i(, iw, …) keep Vim grammar semantics (ADR 0002).
+  require('mini.ai').setup({
+    custom_textobjects = {
+      -- nearest of brackets or quotes; <> excluded (comparison-operator
+      -- false positives), as in mini.ai's own b builtin
+      m = { { '%b()', '%b[]', '%b{}', '%b""', "%b''", '%b``' }, '^.().*().$' },
+    },
+    mappings = {
+      around = '',
+      inside = '',
+      around_next = '',
+      inside_next = '',
+      around_last = '',
+      inside_last = '',
+      goto_left = '',
+      goto_right = '',
+    },
+  })
 
   -- helix gw word labels; alphabet from the user's helix config (colemak)
   require('mini.jump2d').setup({
