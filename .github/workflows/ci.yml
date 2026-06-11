@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Neovim 0.12
+        run: |
+          curl -fsSL -o /tmp/nvim.tar.gz \
+            https://github.com/neovim/neovim/releases/download/v0.12.2/nvim-linux-x86_64.tar.gz
+          sudo tar -C /opt -xzf /tmp/nvim.tar.gz
+          echo "/opt/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      # fzf + ripgrep back the pickers; the tree-sitter CLI builds parsers.
+      # gopls is intentionally absent: its integration test self-skips.
+      - name: Install tooling
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q fzf ripgrep
+          npm install -g tree-sitter-cli
+
+      - run: make test
