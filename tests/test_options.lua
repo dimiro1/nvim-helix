@@ -61,6 +61,40 @@ T['completeopt matches the helix-style menu'] = function()
   end
 end
 
+T['cmdline completes as you type (cmdline autocompletion)'] = function()
+  eq(child.lua_get([[vim.o.wildmode]]), 'noselect:lastused,full')
+  eq(child.lua_get([[vim.o.wildoptions]]):find('fuzzy', 1, true) ~= nil, true)
+  local autocmds = child.lua_get(
+    [[#vim.api.nvim_get_autocmds({ group = 'config.cmdlinecomplete', event = 'CmdlineChanged' })]]
+  )
+  eq(autocmds > 0, true)
+end
+
+T['typing a command pops the completion menu unselected'] = function()
+  child.type_keys(':', 'ech')
+  eq(child.lua_get([[vim.fn.wildmenumode()]]), 1)
+  -- noselect: the typed text is untouched until the user picks a match
+  eq(child.lua_get([[vim.fn.getcmdline()]]), 'ech')
+  child.type_keys('<Esc>')
+end
+
+T['typing a search pattern pops buffer-word completion'] = function()
+  child.lua([[vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'alpha', 'alpine' })]])
+  child.type_keys('/', 'alp')
+  eq(child.lua_get([[vim.fn.wildmenumode()]]), 1)
+  child.type_keys('<Esc>')
+end
+
+T['experimental ui2 message layer activates with a UI'] = function()
+  -- ui2's enable() no-ops headless (as test children boot), so attach a
+  -- UI over RPC and rerun the config's enable step; activation is
+  -- observable through the autocmds the upstream module installs.
+  eq(child.lua_get([[#vim.api.nvim_get_autocmds({ group = 'nvim.ui2' })]]), 0)
+  child.api.nvim_ui_attach(80, 24, {})
+  child.lua([[require('config.options').enable_ui2()]])
+  eq(child.lua_get([[#vim.api.nvim_get_autocmds({ group = 'nvim.ui2' }) > 0]]), true)
+end
+
 T['search is smart-case like helix'] = function()
   eq(child.lua_get([[vim.o.ignorecase]]), true)
   eq(child.lua_get([[vim.o.smartcase]]), true)
