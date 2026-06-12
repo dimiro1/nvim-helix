@@ -80,6 +80,24 @@ T['space-w aliases window mode'] = function()
   eq(child.lua_get([[vim.fn.maparg('<Leader>w', 'n')]]), '<C-W>')
 end
 
+T['cmdline arrows stay on history while the completion menu is open'] = function()
+  for _, lhs in ipairs({ '<Up>', '<Down>' }) do
+    eq(child.lua_get(([[vim.fn.maparg('%s', 'c', false, true).expr]]):format(lhs)), 1, lhs)
+  end
+end
+
+T['cmdline ctrl-a/ctrl-e jump to start and end'] = function()
+  -- typing pops the completion menu, so this also covers the
+  -- dismiss-menu-first branch of both mappings
+  child.type_keys(':', 'echo')
+  child.type_keys('<C-a>')
+  eq(child.lua_get([[vim.fn.getcmdpos()]]), 1)
+  child.type_keys('<C-e>')
+  eq(child.lua_get([[vim.fn.getcmdpos()]]), 5)
+  eq(child.lua_get([[vim.fn.getcmdline()]]), 'echo')
+  child.type_keys('<Esc>')
+end
+
 T['marks survive: m is not remapped'] = function()
   eq(child.lua_get([[vim.fn.maparg('m', 'n')]]), '')
 end

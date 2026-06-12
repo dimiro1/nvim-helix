@@ -39,7 +39,7 @@ local function pair_textobject(ai_type, id)
   end
 end
 
--- { modes, lhs, rhs, desc, remap = bool }
+-- { modes, lhs, rhs, desc, remap = bool, expr = bool }
 M.specs = {
   -- Space mode: pickers
   { 'n', '<Leader><Space>', pick('buffers'), 'Open buffer picker' },
@@ -154,6 +154,47 @@ M.specs = {
   { { 'x', 'o' }, 'im', pair_textobject('i', 'm'), 'Surrounding pair (inner)' },
   { { 'x', 'o' }, 'am', pair_textobject('a', 'm'), 'Surrounding pair (around)' },
 
+  -- Cmdline autocompletion pops a menu while typing, which would steal the
+  -- arrows for menu selection. While the menu is open, <C-e> closes it and
+  -- restores the typed text, so the arrow then recalls history as usual.
+  {
+    'c',
+    '<Up>',
+    function()
+      return vim.fn.wildmenumode() == 1 and '<C-e><Up>' or '<Up>'
+    end,
+    'History up (past completion menu)',
+    expr = true,
+  },
+  {
+    'c',
+    '<Down>',
+    function()
+      return vim.fn.wildmenumode() == 1 and '<C-e><Down>' or '<Down>'
+    end,
+    'History down (past completion menu)',
+    expr = true,
+  },
+  -- Readline-style cursor jumps; <C-a> shadows the native insert-all-matches
+  {
+    'c',
+    '<C-a>',
+    function()
+      return vim.fn.wildmenumode() == 1 and '<C-e><Home>' or '<Home>'
+    end,
+    'Cursor to start of cmdline',
+    expr = true,
+  },
+  {
+    'c',
+    '<C-e>',
+    function()
+      return vim.fn.wildmenumode() == 1 and '<C-e><End>' or '<End>'
+    end,
+    'Cursor to end of cmdline',
+    expr = true,
+  },
+
   -- Unimpaired-style moves between text objects (Helix keys)
   { { 'n', 'x', 'o' }, ']f', move('next_start', '@function.outer'), 'Next function' },
   { { 'n', 'x', 'o' }, '[f', move('previous_start', '@function.outer'), 'Previous function' },
@@ -182,6 +223,7 @@ function M.setup()
     vim.keymap.set(spec[1], spec[2], spec[3], {
       desc = spec[4],
       remap = spec.remap,
+      expr = spec.expr,
       silent = true,
     })
   end
