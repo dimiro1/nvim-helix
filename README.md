@@ -44,13 +44,13 @@ with `:lua vim.pack.update()`, review the diff, `:write` to confirm.
 
 | Key | Action |
 |---|---|
-| `Space Space` | buffer picker (personal helix shortcut) |
+| `Space Space` | everything picker — files, buffers, document symbols, and commands in one list, matched by name |
 | `Space f` / `Space F` | file picker (workspace root / cwd, dotfiles shown) |
 | `Space b` `Space j` `Space g` | buffer / jumplist / changed-file pickers |
 | `Space s` / `Space S` | document / workspace symbol picker |
 | `Space d` / `Space D` | buffer / workspace diagnostics picker |
 | `Space /` | global search (live grep) |
-| `Space ?` | command palette |
+| `Space ?` | command palette — preview shows the command's `:help` entry, else its description |
 | `Space '` | resume last picker |
 | `Space e` | directory search across the whole workspace → explorer at the pick |
 | `Space .` | file explorer at the buffer's directory (level-by-level, `../` to go up) |

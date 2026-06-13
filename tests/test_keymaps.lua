@@ -109,4 +109,17 @@ T['vim grammar survives: ge and native brackets stay stock'] = function()
   eq(child.lua_get([[vim.fn.maparg('[b', 'n') ~= '']]), true)
 end
 
+T['space-space opens the everything picker, space-b keeps buffers'] = function()
+  local desc = child.lua_get([[(function()
+    local out = {}
+    for _, spec in ipairs(require('config.keymaps').specs) do
+      if spec[2] == '<Leader><Space>' then out.space = spec[4] end
+      if spec[2] == '<Leader>b' then out.b = spec[4] end
+    end
+    return out
+  end)()]])
+  eq(desc.space, 'Open everything picker')
+  eq(desc.b, 'Open buffer picker')
+end
+
 return T

@@ -8,6 +8,10 @@ A personal Neovim configuration that recreates Helix's interaction layer — pic
 An interactive overlay for selecting one item among many (files, buffers, symbols, diagnostics, …) with fuzzy filtering and an always-visible preview pane. All item kinds share one picker surface with consistent behavior.
 _Avoid_: finder, fuzzy finder, selector
 
+**Everything picker**:
+The one picker whose result list spans multiple item kinds at once — files, buffers, document symbols, and commands — matched by name, so you search without first choosing the kind. Distinct from global search, which matches file contents.
+_Avoid_: search everywhere, omni picker, global picker
+
 **Fidelity Rule**:
 The boundary that decides every keybinding question: Helix owns the leader layer and LSP gotos; Vim owns the grammar. Additions in Vim-idiomatic style are allowed; overriding the grammar with Helix keys is not.
 

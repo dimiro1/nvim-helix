@@ -42,7 +42,7 @@ end
 -- { modes, lhs, rhs, desc, remap = bool, expr = bool }
 M.specs = {
   -- Space mode: pickers
-  { 'n', '<Leader><Space>', pick('buffers'), 'Open buffer picker' },
+  { 'n', '<Leader><Space>', pick('everything'), 'Open everything picker' },
   { 'n', '<Leader>f', pick('files'), 'Open file picker (workspace root)' },
   { 'n', '<Leader>F', pick('files_cwd'), 'Open file picker (current dir)' },
   { 'n', '<Leader>b', pick('buffers'), 'Open buffer picker' },
@@ -57,14 +57,7 @@ M.specs = {
   { 'n', "<Leader>'", pick('resume'), 'Open last picker' },
   { 'n', '<Leader>e', pick('directories'), 'Search directories in workspace' },
   { 'n', '<Leader>z', pick('zoxide'), 'Open recent directory picker (zoxide)' },
-  {
-    'n',
-    '<Leader>W',
-    function()
-      require('config.worktrees').pick()
-    end,
-    'Open worktree picker (switch workspace)',
-  },
+  { 'n', '<Leader>W', pick('worktrees'), 'Open worktree picker (switch workspace)' },
   { 'n', '<Leader>.', pick('explorer_buffer_dir'), "Open file explorer (buffer's directory)" },
 
   -- Space mode: LSP
