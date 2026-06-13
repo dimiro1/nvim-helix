@@ -174,7 +174,7 @@ end
 -- match wins; GROUP_ORDER sets only the pre-query view and the order of ties.
 function M.everything_opts(root)
   return {
-    prompt = 'Everything> ',
+    prompt = require('config.pickers').PROMPTS.everything,
     cwd = root,
     fzf_opts = { ['--delimiter'] = '\t', ['--with-nth'] = '2..', ['--nth'] = '2' },
     previewer = { _ctor = everything_previewer },

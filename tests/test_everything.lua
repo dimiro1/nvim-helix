@@ -27,6 +27,13 @@ T['the everything picker exposes its building blocks'] = function()
   eq(missing, {})
 end
 
+T['everything_opts reads its prompt from the shared standard'] = function()
+  eq(
+    child.lua_get([[require('config.everything').everything_opts('/tmp').prompt]]),
+    child.lua_get([[require('config.pickers').PROMPTS.everything]])
+  )
+end
+
 T['build_entries orders groups buffers, symbols, files, commands and tags each'] = function()
   local lines = child.lua_get([[require('config.everything').build_entries({
     buffers = { { kind = 'buffer', bufnr = 1, path = '/p/a.lua', name = 'a.lua' } },

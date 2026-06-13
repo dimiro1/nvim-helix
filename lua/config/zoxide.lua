@@ -1,15 +1,12 @@
--- zoxide: terminal-style frecent directory jumping, no plugin — zoxide is
--- a system binary and the picker engine already exists. `:Z {query}` jumps
--- like terminal z; `:Z` / Space-z open the picker (Enter = cd, Ctrl-f =
--- cd + file picker). A DirChanged hook mirrors the shell hook: every :cd
--- feeds the db.
+-- zoxide: terminal-style frecent directory jumping. `:Z {query}` jumps like
+-- terminal z; `:Z` / Space-z open fzf-lua's zoxide picker (Enter = cd, Ctrl-f =
+-- cd + file picker). A DirChanged hook mirrors the shell hook: every :cd feeds
+-- the db, so in-editor jumps count, not just picker selections.
 local M = {}
 
 local function fzf()
   return require('fzf-lua')
 end
-
-M.ZOXIDE_LIST_CMD = 'zoxide query --list'
 
 local function available()
   return vim.fn.executable('zoxide') == 1
@@ -31,23 +28,18 @@ function M.jump(words)
   cd(out[1])
 end
 
+-- The built-in picker lists with scores, previews the directory, and its Enter
+-- action cd's and feeds the db. We only layer Ctrl-f on top: cd, then open the
+-- file picker in the chosen directory.
 function M.pick()
-  if not available() then
-    return vim.notify('zoxide not found on PATH', vim.log.levels.ERROR)
-  end
-  fzf().fzf_exec(M.ZOXIDE_LIST_CMD, {
-    prompt = 'z> ',
+  local zoxide_cd = require('fzf-lua.actions').zoxide_cd
+  fzf().zoxide({
+    prompt = require('config.pickers').PROMPTS.zoxide,
     actions = {
-      default = function(selected)
-        if selected[1] then
-          cd(selected[1])
-        end
-      end,
-      ['ctrl-f'] = function(selected)
-        if selected[1] then
-          cd(selected[1])
-          require('config.pickers').files_cwd()
-        end
+      enter = zoxide_cd,
+      ['ctrl-f'] = function(selected, opts)
+        zoxide_cd(selected, opts)
+        require('config.pickers').files_cwd()
       end,
     },
   })
