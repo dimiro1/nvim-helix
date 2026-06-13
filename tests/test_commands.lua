@@ -23,6 +23,18 @@ T['config.commands is wired'] = function()
   eq(missing, {})
 end
 
+T['the command palette reads its prompt from the shared standard'] = function()
+  eq(
+    child.lua_get([[(function()
+      local last
+      require('fzf-lua').fzf_exec = function(_, o) last = o end
+      require('config.commands').pick()
+      return last and last.prompt
+    end)()]]),
+    child.lua_get([[require('config.pickers').PROMPTS.command_palette]])
+  )
+end
+
 T['extract_help takes the prose after an anchor-only line'] = function()
   local got = child.lua_get([[require('config.commands').extract_help({
     '                    *:restart*',

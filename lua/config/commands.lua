@@ -165,7 +165,7 @@ function M.pick()
   end
   table.sort(names)
   fzf().fzf_exec(names, {
-    prompt = 'Commands> ',
+    prompt = require('config.pickers').PROMPTS.command_palette,
     previewer = { _ctor = commands_previewer },
     actions = {
       default = function(selected)

@@ -22,6 +22,27 @@ T['zoxide is wired'] = function()
   eq(missing, {})
 end
 
+T['pick delegates to the built-in zoxide picker, layering ctrl-f'] = function()
+  local got = child.lua_get([[(function()
+    local seen = {}
+    require('fzf-lua').zoxide = function(opts) seen.opts = opts or false end
+    require('config.zoxide').pick()
+    local actions = type(seen.opts) == 'table' and seen.opts.actions or {}
+    return {
+      called = seen.opts ~= nil,
+      enter = type(actions.enter) == 'function',
+      ctrl_f = type(actions['ctrl-f']) == 'function',
+      prompt = type(seen.opts) == 'table' and seen.opts.prompt or nil,
+    }
+  end)()]])
+  eq(got, {
+    called = true,
+    enter = true,
+    ctrl_f = true,
+    prompt = child.lua_get([[require('config.pickers').PROMPTS.zoxide]]),
+  })
+end
+
 T[':Z command is registered'] = function()
   eq(child.lua_get([[vim.api.nvim_get_commands({})['Z'] ~= nil]]), true)
 end

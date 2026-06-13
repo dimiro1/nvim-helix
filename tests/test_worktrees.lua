@@ -61,6 +61,30 @@ T['in a live instance'][':Worktrees command is registered'] = function()
   eq(child.lua_get([[vim.api.nvim_get_commands({})['Worktrees'] ~= nil]]), true)
 end
 
+T['in a live instance']['the picker reads its prompt from the shared standard'] = function()
+  local got = child.lua_get([[(function()
+    local base = vim.fn.tempname()
+    local repo = base .. '/main'
+    vim.fn.mkdir(repo, 'p')
+    local function git(...)
+      local cmd = { 'git', '-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t' }
+      vim.list_extend(cmd, { ... })
+      vim.fn.system(cmd)
+    end
+    git('init', '-q', '-b', 'main')
+    vim.fn.writefile({ 'alpha' }, repo .. '/a.txt')
+    git('add', '.')
+    git('commit', '-q', '-m', 'init')
+    vim.cmd.cd(repo)
+
+    local last
+    require('fzf-lua').fzf_exec = function(_, opts) last = opts end
+    require('config.worktrees').pick()
+    return last and last.prompt
+  end)()]])
+  eq(got, child.lua_get([[require('config.pickers').PROMPTS.worktrees]]))
+end
+
 T['in a live instance']['switching round-trips workspaces'] = function()
   local result = child.lua_get([[(function()
     local worktrees = require('config.worktrees')

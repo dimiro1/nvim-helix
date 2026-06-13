@@ -124,7 +124,7 @@ function M.pick()
     by_line[label] = wt.path
   end
   require('fzf-lua').fzf_exec(lines, {
-    prompt = 'worktrees> ',
+    prompt = require('config.pickers').PROMPTS.worktrees,
     actions = {
       default = function(selected)
         if selected[1] then
