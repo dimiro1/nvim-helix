@@ -1,9 +1,12 @@
--- Hand-rolled statusline mirroring the user's Helix statusline:
+-- Hand-rolled statusline mirroring the user's layout:
 -- left = mode + git branch, center = file name + modified/read-only flags,
--- right = workspace diagnostics, buffer diagnostics, position, encoding,
--- line ending, file type. The mode segment is a colored badge whose
--- fill is drawn from the active colorscheme.
--- build()/parse_head()/diag_segment() are pure for testability.
+-- right = search match count, workspace diagnostics, buffer diagnostics,
+-- position, encoding, line ending, file type. The mode and position
+-- segments are colored badges whose fill is drawn from the active
+-- colorscheme. Encoding is shown only when it isn't utf-8; the metadata
+-- tail (line ending, encoding, file type) is shed as the window narrows.
+-- build()/parse_head()/diag_segment()/encoding_label()/search_segment()
+-- are pure for testability.
 local M = {}
 
 M.mode_labels = {
@@ -44,6 +47,15 @@ M.mode_sources = {
   StatuslineModeTerm = 'Type',
 }
 
+-- The metadata tail drops parts whose key falls below the window width,
+-- narrowest-survivor last. Diagnostics, search count, and position never
+-- shed. Value = the minimum window columns to keep the part.
+M.right_min_width = {
+  line_ending = 90,
+  encoding = 80,
+  filetype = 60,
+}
+
 -- Readable ink for a 0xRRGGBB fill: light fills get black text, dark
 -- fills get white, by Rec. 601 luma. Keeps badges legible on any theme.
 function M.ink(fill)
@@ -64,6 +76,20 @@ function M.diag_segment(errors, warnings)
     parts[#parts + 1] = ('W:%d'):format(warnings)
   end
   return table.concat(parts, ' ')
+end
+
+-- File encoding to display, or nil when it's the unremarkable utf-8.
+function M.encoding_label(fenc, fallback)
+  local enc = (fenc and fenc ~= '') and fenc or fallback
+  return enc ~= 'utf-8' and enc or nil
+end
+
+-- '[cur/total]' for the active search; '' when nothing is matched.
+function M.search_segment(current, total)
+  if (total or 0) == 0 then
+    return ''
+  end
+  return ('[%d/%d]'):format(current or 0, total)
 end
 
 -- .git/HEAD content -> branch name, or short hash when detached.
@@ -114,6 +140,9 @@ function M.build(s)
   end
 
   local segments = {}
+  if s.search and s.search ~= '' then
+    segments[#segments + 1] = s.search
+  end
   local ws = M.diag_segment(s.ws_errors, s.ws_warnings)
   if ws ~= '' then
     segments[#segments + 1] = '[' .. ws .. ']'
@@ -122,14 +151,26 @@ function M.build(s)
   if buf ~= '' then
     segments[#segments + 1] = buf
   end
-  segments[#segments + 1] = ('%d:%d'):format(s.line, s.col)
-  if s.encoding then
+
+  -- Position carries the mode badge's color on the active window, so the
+  -- bar is bookended by the mode hue at both ends.
+  local position = ('%d:%d'):format(s.line, s.col)
+  if s.color and label and M.mode_groups[label] then
+    position = '%#' .. M.mode_groups[label] .. '# ' .. position .. ' %#StatusLine#'
+  end
+  segments[#segments + 1] = position
+
+  -- Metadata tail: drop the parts the window is too narrow to carry.
+  local function wide_enough(key)
+    return s.width == nil or s.width >= M.right_min_width[key]
+  end
+  if s.encoding and wide_enough('encoding') then
     segments[#segments + 1] = s.encoding
   end
-  if s.line_ending then
+  if s.line_ending and wide_enough('line_ending') then
     segments[#segments + 1] = s.line_ending
   end
-  if s.filetype and s.filetype ~= '' then
+  if s.filetype and s.filetype ~= '' and wide_enough('filetype') then
     segments[#segments + 1] = s.filetype
   end
 
@@ -177,6 +218,19 @@ function M.detect_branch(path)
   return M.parse_head(head)
 end
 
+-- Active-search match position for the focused window; '' when idle.
+-- Wrapped in pcall because searchcount errors on a malformed pattern.
+function M.search_count()
+  if vim.v.hlsearch ~= 1 then
+    return ''
+  end
+  local ok, r = pcall(vim.fn.searchcount, { recompute = true, maxcount = 999 })
+  if not ok or type(r) ~= 'table' then
+    return ''
+  end
+  return M.search_segment(r.current, r.total)
+end
+
 -- Runs inside a %{%…%} block: current window is the one being drawn,
 -- g:actual_curwin is the focused one.
 function M.render()
@@ -187,7 +241,6 @@ function M.render()
   local counts = vim.diagnostic.count(buf)
   local ws_counts = vim.diagnostic.count(nil)
   local pos = vim.api.nvim_win_get_cursor(win)
-  local fenc = vim.bo[buf].fileencoding
   -- a global statusline spans all columns; per-window spans the window
   local width = vim.o.laststatus == 3 and vim.o.columns or vim.api.nvim_win_get_width(win)
   return M.build({
@@ -204,10 +257,12 @@ function M.render()
     errors = counts[vim.diagnostic.severity.ERROR],
     warnings = counts[vim.diagnostic.severity.WARN],
     line = pos[1],
-    col = pos[2] + 1,
-    encoding = fenc ~= '' and fenc or vim.o.encoding,
+    -- virtual (display) column, so tabs and multibyte glyphs read right
+    col = vim.fn.virtcol('.', false, win),
+    encoding = M.encoding_label(vim.bo[buf].fileencoding, vim.o.encoding),
     line_ending = line_endings[vim.bo[buf].fileformat],
     filetype = vim.bo[buf].filetype,
+    search = active and M.search_count() or nil,
     width = width,
   })
 end
