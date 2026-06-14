@@ -105,6 +105,10 @@ T['splits open right and below'] = function()
   eq(child.lua_get([[vim.o.splitbelow]]), true)
 end
 
+T['the built-in mode message is off (the statusline badge replaces it)'] = function()
+  eq(child.lua_get([[vim.o.showmode]]), false)
+end
+
 T['diagnostics: eol text off the cursor line, expanded on it'] = function()
   eq(child.lua_get([[vim.diagnostic.config().severity_sort]]), true)
   eq(child.lua_get([[vim.diagnostic.config().signs]]), true)
