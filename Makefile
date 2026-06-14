@@ -3,6 +3,10 @@
 # committed vim.pack lockfile (nvim-pack-lock.json) is written in-repo.
 XDG := $(CURDIR)/.testenv
 export XDG_CONFIG_HOME := $(XDG)/config
+# isolated data dir: vim.pack installs plugins here, so the committed
+# lockfile reflects only this config's declared plugins — not whatever else
+# lives in the user's real ~/.local/share/nvim
+export XDG_DATA_HOME := $(XDG)/data
 # hermetic zoxide db: tests cd around and must not pollute the real one
 export _ZO_DATA_DIR := $(XDG)/zoxide
 # isolated state dir: workspace sessions from tests stay out of ~/.local/state

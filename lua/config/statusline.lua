@@ -1,29 +1,58 @@
 -- Hand-rolled statusline mirroring the user's Helix statusline:
 -- left = mode + git branch, center = file name + modified/read-only flags,
 -- right = workspace diagnostics, buffer diagnostics, position, encoding,
--- line ending, file type. Mode segment is colored (helix color-modes).
+-- line ending, file type. The mode segment is a colored badge whose
+-- fill is drawn from the active colorscheme.
 -- build()/parse_head()/diag_segment() are pure for testability.
 local M = {}
 
 M.mode_labels = {
-  n = '❮N❯', no = '❮N❯', nov = '❮N❯', noV = '❮N❯', ['no\22'] = '❮N❯',
-  niI = '❮N❯', niR = '❮N❯', niV = '❮N❯', nt = '❮N❯', ntT = '❮N❯',
-  i = '❮I❯', ic = '❮I❯', ix = '❮I❯',
-  v = '❮V❯', vs = '❮V❯', V = '❮V❯', Vs = '❮V❯',
-  ['\22'] = '❮V❯', ['\22s'] = '❮V❯', s = '❮V❯', S = '❮V❯', ['\19'] = '❮V❯',
-  R = '❮R❯', Rc = '❮R❯', Rx = '❮R❯', Rv = '❮R❯', Rvc = '❮R❯', Rvx = '❮R❯',
-  c = '❮C❯', cv = '❮C❯', r = '❮P❯', rm = '❮P❯', ['r?'] = '❮P❯',
-  ['!'] = '❮$❯', t = '❮T❯',
+  n = 'NOR', no = 'NOR', nov = 'NOR', noV = 'NOR', ['no\22'] = 'NOR',
+  niI = 'NOR', niR = 'NOR', niV = 'NOR', nt = 'NOR', ntT = 'NOR',
+  i = 'INS', ic = 'INS', ix = 'INS',
+  v = 'VIS', vs = 'VIS', V = 'VIS', Vs = 'VIS',
+  ['\22'] = 'VIS', ['\22s'] = 'VIS', s = 'VIS', S = 'VIS', ['\19'] = 'VIS',
+  R = 'REP', Rc = 'REP', Rx = 'REP', Rv = 'REP', Rvc = 'REP', Rvx = 'REP',
+  c = 'CMD', cv = 'CMD', r = 'PMT', rm = 'PMT', ['r?'] = 'PMT',
+  ['!'] = 'SHL', t = 'TRM',
 }
 
+-- Label -> highlight group; build() wraps the badge in '%#group#…'.
 M.mode_groups = {
-  ['❮N❯'] = 'StatuslineModeNormal',
-  ['❮I❯'] = 'StatuslineModeInsert',
-  ['❮V❯'] = 'StatuslineModeVisual',
-  ['❮R❯'] = 'StatuslineModeReplace',
-  ['❮C❯'] = 'StatuslineModeCommand',
-  ['❮T❯'] = 'StatuslineModeTerm',
+  NOR = 'StatuslineModeNormal',
+  INS = 'StatuslineModeInsert',
+  VIS = 'StatuslineModeVisual',
+  REP = 'StatuslineModeReplace',
+  CMD = 'StatuslineModeCommand',
+  PMT = 'StatuslineModePrompt',
+  SHL = 'StatuslineModeShell',
+  TRM = 'StatuslineModeTerm',
 }
+
+-- Each badge fills with a builtin group's foreground, resolved live in
+-- setup() so the palette follows whatever colorscheme is set. Sources
+-- are chosen to land on distinct hues (themes that leave one unstyled
+-- fall back to the plain bar — see setup()).
+M.mode_sources = {
+  StatuslineModeNormal = 'Function',
+  StatuslineModeInsert = 'PreProc',
+  StatuslineModeVisual = 'Statement',
+  StatuslineModeReplace = 'DiagnosticError',
+  StatuslineModeCommand = 'Constant',
+  StatuslineModePrompt = 'DiagnosticInfo',
+  StatuslineModeShell = 'Operator',
+  StatuslineModeTerm = 'Type',
+}
+
+-- Readable ink for a 0xRRGGBB fill: light fills get black text, dark
+-- fills get white, by Rec. 601 luma. Keeps badges legible on any theme.
+function M.ink(fill)
+  local r = math.floor(fill / 65536) % 256
+  local g = math.floor(fill / 256) % 256
+  local b = fill % 256
+  local luma = (r * 299 + g * 587 + b * 114) / 1000
+  return luma >= 128 and 0x000000 or 0xffffff
+end
 
 -- 'E:1 W:2' with zero-count parts omitted; '' when clean.
 function M.diag_segment(errors, warnings)
@@ -49,16 +78,26 @@ function M.parse_head(content)
   return content:match('^(%x+)') and content:sub(1, 7) or nil
 end
 
+-- Display columns a built segment occupies, ignoring %#hl# group escapes
+-- (which take no screen space).
+function M.display_width(segment)
+  return vim.fn.strdisplaywidth((segment:gsub('%%#[^#]*#', '')))
+end
+
 -- state: { mode_label, color, branch, worktree, file, modified, readonly,
 --          crumbs, ws_errors, ws_warnings, errors, warnings, line, col,
---          encoding, line_ending, filetype }
+--          encoding, line_ending, filetype, width }
+-- width (the window's columns) opts the center segment into true
+-- window-centering; without it the center balances in the leftover space.
 function M.build(s)
-  local mode = s.mode_label or '   '
-  if s.mode_label and s.color then
-    local group = M.mode_groups[s.mode_label]
-    if group then
-      mode = '%#' .. group .. '#' .. s.mode_label .. '%#StatusLine#'
-    end
+  local label = s.mode_label
+  local mode
+  if label == nil then
+    mode = '     ' -- inactive window: reserve the badge's width
+  elseif s.color and M.mode_groups[label] then
+    mode = '%#' .. M.mode_groups[label] .. '# ' .. label .. ' %#StatusLine#'
+  else
+    mode = label -- active but uncolored (unit tests); no badge to pad
   end
   local vcs = s.branch
   if vcs and s.worktree then
@@ -94,7 +133,25 @@ function M.build(s)
     segments[#segments + 1] = s.filetype
   end
 
-  return left .. ' %=' .. center .. '%=' .. table.concat(segments, '  ') .. ' '
+  local right = table.concat(segments, '  ') .. ' '
+
+  -- True-center the center segment on the window midpoint: position it
+  -- by hand from the segment widths instead of letting %= balance it in
+  -- the leftover space (which drifts when left and right differ in size).
+  if s.width then
+    local lw = M.display_width(left)
+    local cw = M.display_width(center)
+    local rw = M.display_width(right)
+    local left_gap = math.floor((s.width - cw) / 2) - lw
+    local right_gap = s.width - lw - left_gap - cw - rw
+    if left_gap >= 1 and right_gap >= 1 then
+      return left .. (' '):rep(left_gap) .. center .. (' '):rep(right_gap) .. right
+    end
+  end
+
+  -- No width, or the segments are too wide to center without overlap:
+  -- fall back to %= balancing, which degrades gracefully.
+  return left .. ' %=' .. center .. '%=' .. right
 end
 
 local line_endings = { unix = 'LF', dos = 'CRLF', mac = 'CR' }
@@ -131,6 +188,8 @@ function M.render()
   local ws_counts = vim.diagnostic.count(nil)
   local pos = vim.api.nvim_win_get_cursor(win)
   local fenc = vim.bo[buf].fileencoding
+  -- a global statusline spans all columns; per-window spans the window
+  local width = vim.o.laststatus == 3 and vim.o.columns or vim.api.nvim_win_get_width(win)
   return M.build({
     mode_label = active and M.mode_labels[vim.api.nvim_get_mode().mode] or nil,
     color = active,
@@ -149,21 +208,30 @@ function M.render()
     encoding = fenc ~= '' and fenc or vim.o.encoding,
     line_ending = line_endings[vim.bo[buf].fileformat],
     filetype = vim.bo[buf].filetype,
+    width = width,
   })
 end
 
 function M.setup()
-  -- helix color-modes on the stock theme: link to distinct builtin groups
-  for group, link in pairs({
-    StatuslineModeNormal = 'Function',
-    StatuslineModeInsert = 'String',
-    StatuslineModeVisual = 'Statement',
-    StatuslineModeReplace = 'Error',
-    StatuslineModeCommand = 'Constant',
-    StatuslineModeTerm = 'Special',
-  }) do
-    vim.api.nvim_set_hl(0, group, { link = link, default = true })
+  -- Fill each badge from its source group's foreground and ink it for
+  -- contrast; repaint on theme switch so the colors keep up. Resolving
+  -- live (rather than linking) lets a single group carry both fg and bg.
+  local function paint()
+    for group, source in pairs(M.mode_sources) do
+      local fill = vim.api.nvim_get_hl(0, { name = source, link = false }).fg
+      if fill then
+        vim.api.nvim_set_hl(0, group, { fg = M.ink(fill), bg = fill, bold = true })
+      else
+        -- theme leaves the source unstyled: degrade to the plain bar
+        vim.api.nvim_set_hl(0, group, { link = 'StatusLine' })
+      end
+    end
   end
+  paint()
+  vim.api.nvim_create_autocmd('ColorScheme', {
+    group = vim.api.nvim_create_augroup('config.statusline.modes', {}),
+    callback = paint,
+  })
 
   vim.api.nvim_create_autocmd({ 'BufEnter', 'FocusGained', 'DirChanged' }, {
     group = vim.api.nvim_create_augroup('config.statusline', {}),

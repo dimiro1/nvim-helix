@@ -19,6 +19,10 @@ o.smartcase = true
 o.splitright = true
 o.splitbelow = true
 
+-- The statusline shows the mode as a colored badge, so the built-in
+-- '-- INSERT --' line on the command area is redundant.
+o.showmode = false
+
 -- helix: popup-border = "all"
 o.winborder = 'single'
 
