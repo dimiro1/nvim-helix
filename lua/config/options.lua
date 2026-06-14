@@ -60,8 +60,9 @@ o.sessionoptions = 'blank,buffers,curdir,folds,help,tabpages,winsize'
 o.autocomplete = true
 o.complete = 'o^10,.^5,w^5,b^5'
 o.completeopt = 'menuone,noselect,fuzzy,popup'
--- silence the "match 1 of N" messages while completing
-o.shortmess = o.shortmess .. 'c'
+-- 'c' silences "match 1 of N" while completing; 'S' drops the built-in
+-- '[1/5]' search-count message, which the statusline now renders itself.
+o.shortmess = o.shortmess .. 'cS'
 
 -- Cmdline autocompletion (:h cmdline-autocompletion): popup menu as you
 -- type, nothing preselected so the typed text is never clobbered, fuzzy

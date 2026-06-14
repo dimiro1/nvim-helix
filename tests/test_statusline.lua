@@ -40,10 +40,18 @@ T['build']['shows the worktree alongside the branch'] = function()
   )
 end
 
-T['build']['paints the mode badge when active'] = function()
+T['build']['paints the mode and position badges when active'] = function()
   eq(
     sl.build({ mode_label = 'INS', color = true, file = 'x', line = 1, col = 1 }),
-    ' %#StatuslineModeInsert# INS %#StatusLine# %=x%=1:1 '
+    ' %#StatuslineModeInsert# INS %#StatusLine# %=x%=%#StatuslineModeInsert# 1:1 %#StatusLine# '
+  )
+end
+
+T['build']['leaves the position uncolored without an active mode'] = function()
+  -- color set but no mode label (no badge to borrow the hue from)
+  eq(
+    sl.build({ color = true, file = 'x', line = 4, col = 9 }),
+    '       %=x%=4:9 '
   )
 end
 
@@ -108,6 +116,42 @@ T['build']['falls back to %= balancing when too narrow to center'] = function()
   eq(out:find('%=', 1, true) ~= nil, true)
 end
 
+T['build']['sheds the metadata tail as the window narrows'] = function()
+  local th = sl.right_min_width
+  local function at(width)
+    return sl.build({
+      mode_label = 'NOR', file = 'x', line = 12, col = 3,
+      encoding = 'latin1', line_ending = 'LF', filetype = 'lua', width = width,
+    })
+  end
+  local function has(out, part)
+    return out:find(part, 1, true) ~= nil
+  end
+
+  -- wide: the whole tail is present
+  local wide = at(200)
+  eq(has(wide, 'latin1'), true)
+  eq(has(wide, 'LF'), true)
+  eq(has(wide, 'lua'), true)
+
+  -- below the line-ending threshold: LF goes first, the rest stays
+  local narrow = at(th.line_ending - 1)
+  eq(has(narrow, 'LF'), false)
+  eq(has(narrow, 'latin1'), true)
+  eq(has(narrow, 'lua'), true)
+
+  -- below the encoding threshold: encoding goes too, file type stays
+  local narrower = at(th.encoding - 1)
+  eq(has(narrower, 'LF'), false)
+  eq(has(narrower, 'latin1'), false)
+  eq(has(narrower, 'lua'), true)
+
+  -- below the file-type threshold: the tail is gone, position survives
+  local tiny = at(th.filetype - 1)
+  eq(has(tiny, 'lua'), false)
+  eq(has(tiny, '12:3'), true)
+end
+
 T['display_width'] = MiniTest.new_set()
 
 T['display_width']['ignores highlight-group escapes'] = function()
@@ -127,6 +171,32 @@ T['diag_segment']['omits zero counts'] = function()
   eq(sl.diag_segment(2, 0), 'E:2')
   eq(sl.diag_segment(nil, 3), 'W:3')
   eq(sl.diag_segment(1, 2), 'E:1 W:2')
+end
+
+T['encoding_label'] = MiniTest.new_set()
+
+T['encoding_label']['hides the unremarkable utf-8'] = function()
+  eq(sl.encoding_label('utf-8', 'utf-8'), nil)
+  eq(sl.encoding_label('', 'utf-8'), nil)
+end
+
+T['encoding_label']['shows other encodings'] = function()
+  eq(sl.encoding_label('latin1', 'utf-8'), 'latin1')
+  -- empty file encoding falls back to the global one, still shown when not utf-8
+  eq(sl.encoding_label('', 'latin1'), 'latin1')
+end
+
+T['search_segment'] = MiniTest.new_set()
+
+T['search_segment']['formats the active match position'] = function()
+  eq(sl.search_segment(3, 12), '[3/12]')
+  eq(sl.search_segment(0, 5), '[0/5]')
+end
+
+T['search_segment']['is empty without matches'] = function()
+  eq(sl.search_segment(0, 0), '')
+  eq(sl.search_segment(nil, nil), '')
+  eq(sl.search_segment(1, 0), '')
 end
 
 T['parse_head'] = MiniTest.new_set()
@@ -201,6 +271,8 @@ T['in a live instance']['the statusline option points at render'] = function()
 end
 
 T['in a live instance']['render produces the expected look'] = function()
+  -- wide enough that the metadata tail (incl. the line ending) is not shed
+  child.lua([[vim.o.columns = 200]])
   child.lua([[vim.cmd.edit('demo.txt')]])
   local rendered = child.lua_get([[require('config.statusline').render()]])
   eq(rendered:find('NOR', 1, true) ~= nil, true)
@@ -260,6 +332,43 @@ T['in a live instance']['mode badges carry a resolved fill'] = function()
   )
   eq(type(hl.bg), 'number')
   eq(type(hl.fg), 'number')
+end
+
+T['in a live instance']['hides utf-8 but shows other encodings'] = function()
+  child.lua([[vim.o.columns = 200]])
+  child.lua([[vim.cmd.edit('utf8.txt')]])
+  local utf = child.lua_get([[require('config.statusline').render()]])
+  eq(utf:find('utf-8', 1, true), nil)
+  child.lua([[vim.bo.fileencoding = 'latin1']])
+  local latin = child.lua_get([[require('config.statusline').render()]])
+  eq(latin:find('latin1', 1, true) ~= nil, true)
+end
+
+T['in a live instance']['reports the virtual column, not the byte column'] = function()
+  child.lua([[
+    vim.cmd.edit('tabs.txt')
+    vim.bo.expandtab = false
+    vim.bo.tabstop = 8
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { '\tX' })
+    vim.api.nvim_win_set_cursor(0, { 1, 1 })
+  ]])
+  local rendered = child.lua_get([[require('config.statusline').render()]])
+  -- 'X' sits at virtual column 9 (past an 8-cell tab); its byte column is 2
+  eq(rendered:find('1:9', 1, true) ~= nil, true)
+  eq(rendered:find('1:2', 1, true), nil)
+end
+
+T['in a live instance']['shows the search match count while searching'] = function()
+  child.lua([[
+    vim.cmd.edit('search.txt')
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'foo', 'foo', 'foo' })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    vim.o.hlsearch = true
+    vim.fn.setreg('/', 'foo')
+    vim.v.hlsearch = 1
+  ]])
+  local rendered = child.lua_get([[require('config.statusline').render()]])
+  eq(rendered:find('[1/3]', 1, true) ~= nil, true)
 end
 
 return T
