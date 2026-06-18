@@ -22,10 +22,10 @@ M.specs = {
 
 -- Parsers in priority order. lua is bundled with Neovim, but installing
 -- nvim-treesitter's keeps it in lockstep with the plugin's queries.
-M.parsers = { 'go', 'gomod', 'javascript', 'typescript', 'tsx', 'python', 'lua' }
+M.parsers = { 'go', 'gomod', 'java', 'javascript', 'typescript', 'tsx', 'python', 'lua' }
 
 M.treesitter_filetypes = {
-  'go', 'gomod', 'javascript', 'javascriptreact',
+  'go', 'gomod', 'java', 'javascript', 'javascriptreact',
   'typescript', 'typescriptreact', 'python', 'lua',
 }
 

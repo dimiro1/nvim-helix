@@ -11,12 +11,13 @@ local T = MiniTest.new_set({
 
 local eq = MiniTest.expect.equality
 
-T['the four servers are configured as system binaries'] = function()
+T['the five servers are configured as system binaries'] = function()
   local cmds = child.lua_get([[(function()
     return {
       gopls = vim.lsp.config['gopls'].cmd[1],
       ts_ls = vim.lsp.config['ts_ls'].cmd[1],
       pyright = vim.lsp.config['pyright'].cmd[1],
+      jdtls = vim.lsp.config['jdtls'].cmd[1],
       lua_ls = vim.lsp.config['lua_ls'].cmd[1],
     }
   end)()]])
@@ -24,12 +25,13 @@ T['the four servers are configured as system binaries'] = function()
     gopls = 'gopls',
     ts_ls = 'typescript-language-server',
     pyright = 'pyright-langserver',
+    jdtls = 'jdtls',
     lua_ls = 'lua-language-server',
   })
 end
 
 T['servers are enabled'] = function()
-  for _, name in ipairs({ 'gopls', 'ts_ls', 'pyright', 'lua_ls' }) do
+  for _, name in ipairs({ 'gopls', 'ts_ls', 'pyright', 'jdtls', 'lua_ls' }) do
     eq(child.lua_get(([[vim.lsp.is_enabled('%s')]]):format(name)), true)
   end
 end
@@ -54,7 +56,47 @@ T['every server roots on project markers plus .git'] = function()
   eq(vim.tbl_contains(servers.gopls.filetypes, 'go'), true)
   eq(vim.tbl_contains(servers.ts_ls.filetypes, 'typescriptreact'), true)
   eq(vim.tbl_contains(servers.pyright.filetypes, 'python'), true)
+  eq(vim.tbl_contains(servers.jdtls.filetypes, 'java'), true)
   eq(vim.tbl_contains(servers.lua_ls.filetypes, 'lua'), true)
+end
+
+T['jdtls roots on the gradle and maven build files'] = function()
+  local markers = child.lua_get([[require('config.lsp').servers.jdtls.root_markers]])
+  for _, marker in ipairs({ 'build.gradle', 'settings.gradle', 'pom.xml' }) do
+    eq(vim.tbl_contains(markers, marker), true, marker)
+  end
+end
+
+T['jdtls advertises class-file contents support for library gotos'] = function()
+  eq(
+    child.lua_get(
+      [[vim.lsp.config['jdtls'].init_options.extendedClientCapabilities.classFileContentsSupport]]
+    ),
+    true
+  )
+end
+
+T['jdt:// class files route through the jdtls reader'] = function()
+  -- gotos into the JDK / Maven deps open jdt:// URIs; a BufReadCmd is the
+  -- only way Neovim can fill a buffer for a scheme it cannot read from disk
+  local patterns = child.lua_get([[vim.tbl_map(
+    function(a) return a.pattern end,
+    vim.api.nvim_get_autocmds({ group = 'config.lsp', event = 'BufReadCmd' })
+  )]])
+  eq(patterns, { 'jdt://*' })
+end
+
+T['the jdt:// reader is a no-op when jdtls is not running'] = function()
+  -- the reader must never error on a stray jdt:// buffer with no server;
+  -- it returns having left the buffer empty rather than throwing
+  local result = child.lua_get([[(function()
+    local buf = vim.api.nvim_create_buf(false, true)
+    local uri = 'jdt://contents/java.base/java.lang/String.class'
+    vim.api.nvim_buf_set_name(buf, uri)
+    local ok = pcall(require('config.lsp').open_jdt_class, buf, uri)
+    return ok and table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), '')
+  end)()]])
+  eq(result, '')
 end
 
 T['completion hooks into LspAttach'] = function()
@@ -106,6 +148,33 @@ T['gopls actually attaches to a go buffer'] = function()
     [[#vim.api.nvim_get_autocmds({ event = 'CursorHold', buffer = 0 })]]
   )
   eq(highlight_hooks > 0, true)
+end
+
+T['jdtls actually attaches to a java buffer'] = function()
+  if child.lua_get([[vim.fn.executable('jdtls')]]) ~= 1 then
+    MiniTest.skip('jdtls not on PATH')
+  end
+  child.lua([[(function()
+    local root = vim.fn.tempname()
+    vim.fn.mkdir(root, 'p')
+    vim.fn.writefile({
+      '<project>',
+      '  <modelVersion>4.0.0</modelVersion>',
+      '  <groupId>com.example</groupId>',
+      '  <artifactId>demo</artifactId>',
+      '  <version>1.0</version>',
+    }, root .. '/pom.xml')
+    vim.fn.mkdir(root .. '/src', 'p')
+    vim.fn.writefile(
+      { 'public class Demo {', '  public static void main(String[] a) {}', '}' },
+      root .. '/src/Demo.java'
+    )
+    vim.cmd.edit(root .. '/src/Demo.java')
+  end)()]])
+  local attached = child.lua_get([[vim.wait(30000, function()
+    return #vim.lsp.get_clients({ bufnr = 0, name = 'jdtls' }) > 0
+  end, 100)]])
+  eq(attached, true)
 end
 
 return T

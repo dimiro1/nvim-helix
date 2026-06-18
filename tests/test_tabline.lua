@@ -22,6 +22,31 @@ T['build']['renders an empty list as just fill'] = function()
   eq(tl.build({}), '%#TabLineFill#')
 end
 
+T['display_name'] = MiniTest.new_set()
+
+T['display_name']['takes the basename of a plain path'] = function()
+  eq(tl.display_name('/home/u/proj/two.txt'), 'two.txt')
+end
+
+T['display_name']['labels a nameless buffer as scratch'] = function()
+  eq(tl.display_name(''), '[scratch]')
+end
+
+T['display_name']['reduces a jdtls class-file uri to the class name'] = function()
+  -- jdt:// names carry a ?=… query and url-encoded path; the raw basename
+  -- would be mangled, so only the final class segment should show
+  eq(
+    tl.display_name('jdt://contents/java.base/java.lang/String.class?=demo/\\/modules'),
+    'String.class'
+  )
+  eq(
+    tl.display_name(
+      'jdt://contents/jackson-databind.jar/com.fasterxml.jackson.databind/ObjectMapper.class?=x'
+    ),
+    'ObjectMapper.class'
+  )
+end
+
 T['in a live instance'] = MiniTest.new_set({
   hooks = {
     pre_case = function()

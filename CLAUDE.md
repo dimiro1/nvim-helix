@@ -37,6 +37,6 @@ plugins or shadow Vim grammar keys need to clear those bars, not just work.
 ## External tools assumed on PATH
 
 fzf, rg, lsof, tree-sitter (CLI, parser builds), gopls,
-typescript-language-server, pyright, lua-language-server. CI installs all
-but gopls and lua-language-server (those integration tests self-skip);
-lsof ships preinstalled on macOS and the ubuntu runner image.
+typescript-language-server, pyright, jdtls, lua-language-server. CI installs
+all but gopls, jdtls, and lua-language-server (those integration tests
+self-skip); lsof ships preinstalled on macOS and the ubuntu runner image.

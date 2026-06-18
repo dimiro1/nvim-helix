@@ -14,6 +14,18 @@ function M.build(bufs)
   return table.concat(out)
 end
 
+-- Tab label for a buffer name. Plain files show their basename; buffer
+-- names that are LSP URIs (jdtls class files: jdt://…/String.class?=…) carry
+-- a query string and a url-encoded path, so the basename alone would be
+-- mangled — strip the query and show only the final class/file segment.
+function M.display_name(name)
+  if name == '' then
+    return '[scratch]'
+  end
+  local path = name:gsub('%?.*$', '')
+  return path:match('[^/\\]+$') or path
+end
+
 function M.listed_buffers()
   return vim.tbl_filter(function(buf)
     return vim.bo[buf].buflisted
@@ -26,7 +38,7 @@ function M.render()
   for _, buf in ipairs(M.listed_buffers()) do
     local name = vim.api.nvim_buf_get_name(buf)
     bufs[#bufs + 1] = {
-      name = name == '' and '[scratch]' or vim.fn.fnamemodify(name, ':t'),
+      name = M.display_name(name),
       modified = vim.bo[buf].modified,
       current = buf == current,
     }

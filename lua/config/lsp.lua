@@ -18,6 +18,24 @@ M.servers = {
     filetypes = { 'python' },
     root_markers = { 'pyproject.toml', 'pyrightconfig.json', 'setup.py', 'requirements.txt', '.git' },
   },
+  -- the jdtls launcher is a real PATH binary that derives a per-project
+  -- workspace data dir from the cwd, so it slots in like the stdio servers
+  -- with no extra wiring (no -data, no bootstrap classpath to assemble).
+  jdtls = {
+    cmd = { 'jdtls' },
+    filetypes = { 'java' },
+    root_markers = {
+      'settings.gradle', 'settings.gradle.kts',
+      'build.gradle', 'build.gradle.kts',
+      'pom.xml', 'mvnw', 'gradlew', '.git',
+    },
+    init_options = {
+      -- without this, gotos into the JDK and Maven/Gradle dependencies
+      -- resolve to nothing: the server only emits jdt:// class-file URIs
+      -- for symbols inside jars when the client advertises support for them.
+      extendedClientCapabilities = { classFileContentsSupport = true },
+    },
+  },
   -- tuned for editing this config: LuaJIT, the `vim` global and runtime
   -- type stubs. A project's own .luarc.json takes precedence, so non-nvim
   -- lua projects self-correct.
@@ -54,6 +72,31 @@ function M.go_format(bufnr)
     end
   end
   vim.lsp.buf.format({ bufnr = bufnr, timeout_ms = 2000 })
+end
+
+-- jdtls hands back jdt:// URIs for class files that live inside jars (the
+-- JDK stdlib, Maven/Gradle dependencies). Neovim has no reader for that
+-- scheme, so a goto into library code lands on an empty buffer. Ask the
+-- server for the source/decompiled text through its java/classFileContents
+-- extension and fill the buffer read-only, then attach jdtls so gotos from
+-- within the opened class keep working.
+function M.open_jdt_class(bufnr, uri)
+  local client = vim.lsp.get_clients({ name = 'jdtls' })[1]
+  if not client then
+    return
+  end
+  -- java/classFileContents is a jdtls server extension, outside the standard
+  -- method enum the bundled type stubs know about
+  ---@type any
+  local method = 'java/classFileContents'
+  local response = client:request_sync(method, { uri = uri }, 5000, bufnr)
+  local content = response and response.result or ''
+  vim.bo[bufnr].modifiable = true
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(content, '\n', { plain = true }))
+  vim.bo[bufnr].filetype = 'java'
+  vim.bo[bufnr].modifiable = false
+  vim.bo[bufnr].modified = false
+  vim.lsp.buf_attach_client(bufnr, client.id)
 end
 
 function M.setup()
@@ -99,6 +142,14 @@ function M.setup()
     pattern = '*.go',
     callback = function(args)
       M.go_format(args.buf)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd('BufReadCmd', {
+    group = group,
+    pattern = 'jdt://*',
+    callback = function(args)
+      M.open_jdt_class(args.buf, args.match)
     end,
   })
 end

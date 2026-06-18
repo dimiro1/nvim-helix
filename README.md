@@ -26,6 +26,7 @@ Two laws decide everything here (see `CONTEXT.md` and `docs/adr/`):
 | `gopls` | Go LSP | `go install golang.org/x/tools/gopls@latest` |
 | `typescript-language-server` | JS/TS LSP | `npm i -g typescript-language-server` |
 | `pyright` | Python LSP | `npm i -g pyright` |
+| `jdtls` | Java LSP (Eclipse JDT.LS launcher) | `brew install jdtls` |
 | `lua-language-server` | Lua LSP (this config itself) | `brew install lua-language-server` |
 | `zoxide` (optional) | recent-dirs picker, `:Z` | `brew install zoxide` |
 | `lsof` | `:KillPort` process lookup | preinstalled on macOS/Linux |

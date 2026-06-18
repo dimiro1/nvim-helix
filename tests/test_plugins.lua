@@ -62,9 +62,21 @@ T['treesitter highlighting starts for configured filetypes'] = function()
   )]])
   eq(#patterns > 0, true)
   eq(vim.tbl_contains(patterns, 'go'), true)
+  eq(vim.tbl_contains(patterns, 'java'), true)
   eq(vim.tbl_contains(patterns, 'typescript'), true)
   eq(vim.tbl_contains(patterns, 'python'), true)
   eq(vim.tbl_contains(patterns, 'lua'), true)
+end
+
+T['every highlighted filetype has a parser queued for install'] = function()
+  -- a filetype in the start autocmd but missing from the install list would
+  -- silently fall back to legacy syntax; pin both lists name java together
+  local parsers = child.lua_get([[require('config.plugins').parsers]])
+  local filetypes = child.lua_get([[require('config.plugins').treesitter_filetypes]])
+  for _, lang in ipairs({ 'go', 'java', 'typescript', 'python', 'lua' }) do
+    eq(vim.tbl_contains(parsers, lang), true, lang)
+    eq(vim.tbl_contains(filetypes, lang), true, lang)
+  end
 end
 
 T['mini.clue, mini.pairs, mini.diff, mini.jump2d, mini.ai are set up'] = function()
