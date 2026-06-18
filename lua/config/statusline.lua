@@ -110,9 +110,43 @@ function M.display_width(segment)
   return vim.fn.strdisplaywidth((segment:gsub('%%#[^#]*#', '')))
 end
 
--- state: { mode_label, color, branch, worktree, file, modified, readonly,
---          crumbs, ws_errors, ws_warnings, errors, warnings, line, col,
---          encoding, line_ending, filetype, width }
+-- The center segment's file label. A nameless buffer is '[scratch]'.
+-- jdtls class-file buffers carry a jdt:// URI with a `?=…` query and a
+-- url-encoded path, so fnamemodify would mangle them — reduce those (and
+-- any other scheme:// LSP URI) to the final class/file segment, matching
+-- the tabline. Plain files keep their cwd/home-relative path.
+function M.file_label(name)
+  if name == '' then
+    return '[scratch]'
+  end
+  if name:match('^%a[%w+.-]*://') then
+    return (name:gsub('%?.*$', '')):match('[^/\\]+$') or name
+  end
+  return vim.fn.fnamemodify(name, ':~:.')
+end
+
+-- The library a jdt:// class file was decompiled from, shown as a hint
+-- that the buffer is dependency code rather than project source; nil for
+-- ordinary files. jdtls encodes the maven coordinates in the URI query, so
+-- a Maven dependency reads back as a jar-style `artifact-version`; lacking
+-- those, fall back to the container segment after contents/ (a jar name, or
+-- a JDK module such as java.base).
+function M.dependency_hint(name)
+  if not name:match('^jdt://') then
+    return nil
+  end
+  local query = name:match('%?(.*)$') or ''
+  local artifact = query:match('maven%.artifactId=/([^=/]+)')
+  if artifact then
+    local version = query:match('maven%.version=/([^=/]+)')
+    return version and (artifact .. '-' .. version) or artifact
+  end
+  return name:match('^jdt://contents/([^/]+)')
+end
+
+-- state: { mode_label, color, branch, worktree, file, dependency, modified,
+--          readonly, crumbs, ws_errors, ws_warnings, errors, warnings, line,
+--          col, encoding, line_ending, filetype, width }
 -- width (the window's columns) opts the center segment into true
 -- window-centering; without it the center balances in the leftover space.
 function M.build(s)
@@ -132,6 +166,7 @@ function M.build(s)
   local left = ' ' .. mode .. (vcs and ('  ' .. vcs) or '')
 
   local center = s.file
+    .. (s.dependency and (' (' .. s.dependency .. ')') or '')
     .. (s.modified and ' [+]' or '')
     .. (s.readonly and ' [RO]' or '')
   if s.crumbs and s.crumbs ~= '' then
@@ -248,7 +283,8 @@ function M.render()
     color = active,
     branch = active and vim.b[buf].config_branch or nil,
     worktree = active and vim.b[buf].config_worktree or nil,
-    file = name == '' and '[scratch]' or vim.fn.fnamemodify(name, ':~:.'),
+    file = M.file_label(name),
+    dependency = M.dependency_hint(name),
     modified = vim.bo[buf].modified,
     readonly = vim.bo[buf].readonly,
     crumbs = active and require('config.breadcrumbs').trail() or nil,
