@@ -70,6 +70,40 @@ T['build']['appends the breadcrumb trail to the center segment'] = function()
   )
 end
 
+T['build']['hints the dependency a class file comes from'] = function()
+  eq(
+    sl.build({
+      mode_label = 'NOR', file = 'DotenvBuilder.class', dependency = 'dotenv-java-3.2.0',
+      readonly = true, line = 1, col = 1,
+    }),
+    ' NOR %=DotenvBuilder.class (dotenv-java-3.2.0) [RO]%=1:1 '
+  )
+end
+
+T['build']['compresses interior path directories when the window is tight'] = function()
+  -- a deep path in a 30-col window: interior dirs collapse, file name stays
+  local out = sl.build({
+    mode_label = 'NOR', file = 'aaa/bbb/ccc/longfilename.txt', line = 1, col = 1, width = 30,
+  })
+  eq(out:find('aaa/bbb', 1, true), nil)
+  eq(out:find('longfilename.txt', 1, true) ~= nil, true)
+end
+
+T['build']['leaves the path whole when the window is wide enough'] = function()
+  local out = sl.build({
+    mode_label = 'NOR', file = 'aaa/bbb/ccc.txt', line = 1, col = 1, width = 120,
+  })
+  eq(out:find('aaa/bbb/ccc.txt', 1, true) ~= nil, true)
+end
+
+T['build']['caps a long path even when the window has room to spare'] = function()
+  -- a path longer than path_max_width compresses regardless of free space
+  local long = 'src/main/java/com/getsaldo/pattaya/tool/reference/ReferenceTools.java'
+  local out = sl.build({ mode_label = 'NOR', file = long, line = 1, col = 1, width = 240 })
+  eq(out:find(long, 1, true), nil)
+  eq(out:find('ReferenceTools.java', 1, true) ~= nil, true)
+end
+
 T['build']['marks modified and read-only buffers'] = function()
   eq(
     sl.build({ mode_label = 'NOR', file = 'a', modified = true, readonly = true, line = 1, col = 1 }),
@@ -150,6 +184,97 @@ T['build']['sheds the metadata tail as the window narrows'] = function()
   local tiny = at(th.filetype - 1)
   eq(has(tiny, 'lua'), false)
   eq(has(tiny, '12:3'), true)
+end
+
+T['file_label'] = MiniTest.new_set()
+
+T['file_label']['labels a nameless buffer as scratch'] = function()
+  eq(sl.file_label(''), '[scratch]')
+end
+
+T['file_label']['passes plain paths through fnamemodify'] = function()
+  -- a path under neither cwd nor home is left absolute by ':~:.'
+  eq(sl.file_label('/nonexistent/dir/main.go'), '/nonexistent/dir/main.go')
+end
+
+T['file_label']['reduces a jdtls class-file uri to the class name'] = function()
+  -- jdt:// names carry a ?=… query and url-encoded path; fnamemodify would
+  -- mangle them, so only the final class segment should show
+  eq(
+    sl.file_label('jdt://contents/java.base/java.lang/String.class?=demo/\\/modules'),
+    'String.class'
+  )
+  eq(
+    sl.file_label(
+      'jdt://contents/dotenv-java/io.github.cdimascio.dotenv/DotenvBuilder.class?=x=/maven.scope=/compile'
+    ),
+    'DotenvBuilder.class'
+  )
+end
+
+T['initial'] = MiniTest.new_set()
+
+T['initial']['takes the first letter of a component'] = function()
+  eq(sl.initial('src'), 's')
+  eq(sl.initial('reference'), 'r')
+end
+
+T['initial']['keeps a leading dot for dotfiles'] = function()
+  eq(sl.initial('.config'), '.c')
+  eq(sl.initial('.git'), '.g')
+end
+
+T['fit_path'] = MiniTest.new_set()
+
+T['fit_path']['leaves a path that fits whole'] = function()
+  eq(sl.fit_path('src/main/Foo.java', 100), 'src/main/Foo.java')
+end
+
+T['fit_path']['shortens interior dirs leftmost first until it fits'] = function()
+  -- 'src/main/java/Foo.java' is 22 cols; budget 20 forces one initial
+  eq(sl.fit_path('src/main/java/Foo.java', 20), 's/main/java/Foo.java')
+  -- budget 14 forces three
+  eq(sl.fit_path('src/main/java/Foo.java', 14), 's/m/j/Foo.java')
+end
+
+T['fit_path']['never abbreviates the file name'] = function()
+  -- even with an unfittable budget, the trailing component stays whole
+  eq(sl.fit_path('a/b/VeryLongName.java', 1), 'a/b/VeryLongName.java')
+end
+
+T['fit_path']['returns the path unchanged for an unusable budget'] = function()
+  eq(sl.fit_path('a/b/c', 0), 'a/b/c')
+end
+
+T['dependency_hint'] = MiniTest.new_set()
+
+T['dependency_hint']['is nil for ordinary files'] = function()
+  eq(sl.dependency_hint('/home/u/proj/Main.java'), nil)
+  eq(sl.dependency_hint(''), nil)
+end
+
+T['dependency_hint']['reads the maven coordinates as a jar-style name'] = function()
+  -- jdtls puts the artifact + version in the URI query
+  eq(
+    sl.dependency_hint(
+      'jdt://contents/dotenv-java/io.github.cdimascio.dotenv/DotenvBuilder.class'
+        .. '?=demo/=maven.artifactId=/dotenv-java=/maven.version=/3.2.0=/maven.scope=/compile'
+    ),
+    'dotenv-java-3.2.0'
+  )
+  -- artifact without a version drops the trailing dash
+  eq(
+    sl.dependency_hint('jdt://contents/x/p/C.class?=demo/=maven.artifactId=/dotenv-java=/maven.scope=/compile'),
+    'dotenv-java'
+  )
+end
+
+T['dependency_hint']['falls back to the container segment'] = function()
+  -- JDK classes carry no maven attributes; the module name is the hint
+  eq(
+    sl.dependency_hint('jdt://contents/java.base/java.lang/String.class?=demo/\\/modules'),
+    'java.base'
+  )
 end
 
 T['display_width'] = MiniTest.new_set()
@@ -279,6 +404,37 @@ T['in a live instance']['render produces the expected look'] = function()
   eq(rendered:find('demo.txt', 1, true) ~= nil, true)
   eq(rendered:find('1:1', 1, true) ~= nil, true)
   eq(rendered:find('LF', 1, true) ~= nil, true)
+end
+
+T['in a live instance']['renders a jdt:// class file as its class name'] = function()
+  -- a goto into a Maven/JDK class opens a jdt:// buffer; the center segment
+  -- must show the class name, not the url-encoded path fnamemodify mangles
+  child.lua([[vim.o.columns = 200]])
+  child.lua([[
+    local buf = vim.api.nvim_create_buf(true, false)
+    vim.api.nvim_buf_set_name(
+      buf,
+      'jdt://contents/dotenv-java/io.github.cdimascio.dotenv/DotenvBuilder.class'
+        .. '?=demo/=maven.artifactId=/dotenv-java=/maven.version=/3.2.0=/maven.scope=/compile'
+    )
+    vim.api.nvim_set_current_buf(buf)
+  ]])
+  local rendered = child.lua_get([[require('config.statusline').render()]])
+  eq(rendered:find('DotenvBuilder.class', 1, true) ~= nil, true)
+  -- the dependency hint names the jar, and the raw query never leaks through
+  eq(rendered:find('(dotenv-java-3.2.0)', 1, true) ~= nil, true)
+  eq(rendered:find('maven', 1, true), nil)
+end
+
+T['in a live instance']['compresses a long path when the window is narrow'] = function()
+  child.lua([[
+    vim.o.columns = 60
+    vim.cmd.edit('alpha/bravo/charlie/delta/echo/ReallyLongFileName.java')
+  ]])
+  local rendered = child.lua_get([[require('config.statusline').render()]])
+  -- the file name survives whole; the leading directories are abbreviated
+  eq(rendered:find('ReallyLongFileName.java', 1, true) ~= nil, true)
+  eq(rendered:find('alpha/bravo', 1, true), nil)
 end
 
 T['in a live instance']['the branch is cached for repo buffers'] = function()

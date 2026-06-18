@@ -56,6 +56,11 @@ M.right_min_width = {
   filetype = 60,
 }
 
+-- A long center path is capped at this many display columns by abbreviating
+-- its interior directories, even when the window has room to spare; the
+-- window-derived budget shrinks it further when space is tight.
+M.path_max_width = 40
+
 -- Readable ink for a 0xRRGGBB fill: light fills get black text, dark
 -- fills get white, by Rec. 601 luma. Keeps badges legible on any theme.
 function M.ink(fill)
@@ -110,9 +115,70 @@ function M.display_width(segment)
   return vim.fn.strdisplaywidth((segment:gsub('%%#[^#]*#', '')))
 end
 
--- state: { mode_label, color, branch, worktree, file, modified, readonly,
---          crumbs, ws_errors, ws_warnings, errors, warnings, line, col,
---          encoding, line_ending, filetype, width }
+-- The center segment's file label. A nameless buffer is '[scratch]'.
+-- jdtls class-file buffers carry a jdt:// URI with a `?=…` query and a
+-- url-encoded path, so fnamemodify would mangle them — reduce those (and
+-- any other scheme:// LSP URI) to the final class/file segment, matching
+-- the tabline. Plain files keep their cwd/home-relative path.
+function M.file_label(name)
+  if name == '' then
+    return '[scratch]'
+  end
+  if name:match('^%a[%w+.-]*://') then
+    return (name:gsub('%?.*$', '')):match('[^/\\]+$') or name
+  end
+  return vim.fn.fnamemodify(name, ':~:.')
+end
+
+-- The library a jdt:// class file was decompiled from, shown as a hint
+-- that the buffer is dependency code rather than project source; nil for
+-- ordinary files. jdtls encodes the maven coordinates in the URI query, so
+-- a Maven dependency reads back as a jar-style `artifact-version`; lacking
+-- those, fall back to the container segment after contents/ (a jar name, or
+-- a JDK module such as java.base).
+function M.dependency_hint(name)
+  if not name:match('^jdt://') then
+    return nil
+  end
+  local query = name:match('%?(.*)$') or ''
+  local artifact = query:match('maven%.artifactId=/([^=/]+)')
+  if artifact then
+    local version = query:match('maven%.version=/([^=/]+)')
+    return version and (artifact .. '-' .. version) or artifact
+  end
+  return name:match('^jdt://contents/([^/]+)')
+end
+
+-- First display character of a path component, preserving a leading dot so
+-- dotfiles stay recognizable (src -> s, .config -> .c).
+function M.initial(part)
+  local dot = part:sub(1, 1) == '.' and '.' or ''
+  return dot .. vim.fn.strcharpart(part:sub(#dot + 1), 0, 1)
+end
+
+-- Fit a path into `budget` display columns by shortening its interior
+-- directories to their initial letter, leftmost first (the least specific
+-- end), stopping as soon as it fits. The file name is never abbreviated.
+-- Returns the path unchanged when it already fits or the budget is unusable.
+function M.fit_path(path, budget)
+  if budget < 1 or M.display_width(path) <= budget then
+    return path
+  end
+  local parts = vim.split(path, '/', { plain = true })
+  for i = 1, #parts - 1 do
+    if M.display_width(table.concat(parts, '/')) <= budget then
+      break
+    end
+    if parts[i] ~= '' then
+      parts[i] = M.initial(parts[i])
+    end
+  end
+  return table.concat(parts, '/')
+end
+
+-- state: { mode_label, color, branch, worktree, file, dependency, modified,
+--          readonly, crumbs, ws_errors, ws_warnings, errors, warnings, line,
+--          col, encoding, line_ending, filetype, width }
 -- width (the window's columns) opts the center segment into true
 -- window-centering; without it the center balances in the leftover space.
 function M.build(s)
@@ -131,12 +197,14 @@ function M.build(s)
   end
   local left = ' ' .. mode .. (vcs and ('  ' .. vcs) or '')
 
-  local center = s.file
+  -- everything the center carries besides the path; measured so the path
+  -- can be shortened around it rather than at its expense
+  local extras = (s.dependency and (' (' .. s.dependency .. ')') or '')
     .. (s.modified and ' [+]' or '')
     .. (s.readonly and ' [RO]' or '')
   if s.crumbs and s.crumbs ~= '' then
     -- separator matches config.breadcrumbs.separator
-    center = center .. ' › ' .. s.crumbs
+    extras = extras .. ' › ' .. s.crumbs
   end
 
   local segments = {}
@@ -175,6 +243,17 @@ function M.build(s)
   end
 
   local right = table.concat(segments, '  ') .. ' '
+
+  -- Shorten the path's interior directories (leftmost first): always down to
+  -- the path cap, and further when the window can't seat the center between
+  -- the side segments.
+  local file = s.file
+  if s.width then
+    local budget = s.width - M.display_width(left) - M.display_width(right)
+      - M.display_width(extras) - 2
+    file = M.fit_path(file, math.min(budget, M.path_max_width))
+  end
+  local center = file .. extras
 
   -- True-center the center segment on the window midpoint: position it
   -- by hand from the segment widths instead of letting %= balance it in
@@ -248,7 +327,8 @@ function M.render()
     color = active,
     branch = active and vim.b[buf].config_branch or nil,
     worktree = active and vim.b[buf].config_worktree or nil,
-    file = name == '' and '[scratch]' or vim.fn.fnamemodify(name, ':~:.'),
+    file = M.file_label(name),
+    dependency = M.dependency_hint(name),
     modified = vim.bo[buf].modified,
     readonly = vim.bo[buf].readonly,
     crumbs = active and require('config.breadcrumbs').trail() or nil,
