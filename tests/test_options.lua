@@ -1,5 +1,3 @@
-local opts = require('config.options')
-
 local child = MiniTest.new_child_neovim()
 
 local T = MiniTest.new_set({
@@ -37,16 +35,6 @@ T['tabs are four wide (helix tab-width)'] = function()
   eq(child.lua_get([[vim.o.shiftwidth]]), 4)
   -- expandtab is left to ftplugins so Go keeps real tabs
   eq(child.lua_get([[vim.o.expandtab]]), false)
-end
-
-T['indent guides render via listchars'] = function()
-  eq(child.lua_get([[vim.o.list]]), true)
-  eq(child.lua_get([[vim.o.listchars]]):find('┊', 1, true) ~= nil, true)
-end
-
-T['indent_listchars sizes guides to shiftwidth'] = function()
-  eq(opts.indent_listchars(2), 'tab:┊ ,leadmultispace:┊ ')
-  eq(opts.indent_listchars(4), 'tab:┊ ,leadmultispace:┊   ')
 end
 
 T['native as-you-type completion is on'] = function()

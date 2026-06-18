@@ -1,12 +1,6 @@
 -- Editor options mirroring the user's Helix config where Neovim differs.
 local M = {}
 
--- listchars value rendering indent guides ("┊") for space indentation at
--- the given shiftwidth. Tab indentation is covered by the tab: item.
-function M.indent_listchars(shiftwidth)
-  return 'tab:┊ ,leadmultispace:┊' .. string.rep(' ', math.max(shiftwidth - 1, 1))
-end
-
 local o = vim.o
 
 -- helix: line-number = "relative" (hybrid: absolute on cursor line)
@@ -36,19 +30,8 @@ o.wrap = true
 o.linebreak = true
 o.breakindent = true
 
--- helix: indent-guides.render = true, character = "┊"
--- (skip-levels = 1 is not expressible with listchars; guides start at col 1)
-o.list = true
-o.listchars = M.indent_listchars(vim.o.shiftwidth)
-vim.api.nvim_create_autocmd('OptionSet', {
-  pattern = 'shiftwidth',
-  group = vim.api.nvim_create_augroup('config.indentguides', {}),
-  callback = function()
-    -- vim.fn.shiftwidth() resolves sw=0 ("follow tabstop"), which e.g.
-    -- the bundled Go ftplugin uses
-    vim.opt_local.listchars = M.indent_listchars(vim.fn.shiftwidth())
-  end,
-})
+-- Indent guides are drawn by mini.indentscope (config.plugins), which marks
+-- only the scope at the cursor rather than every level.
 
 -- What a workspace session captures; 'terminal' deliberately
 -- excluded for clean restores.

@@ -13,7 +13,7 @@ M.specs = {
   { src = 'https://github.com/tpope/vim-surround' },
   { src = 'https://github.com/tpope/vim-repeat' },
   -- Modules used: mini.clue (infobox), mini.pairs, mini.diff, mini.jump2d,
-  -- mini.ai, mini.test. Nothing else.
+  -- mini.ai, mini.indentscope, mini.test. Nothing else.
   { src = 'https://github.com/nvim-mini/mini.nvim' },
   -- colorschemes; the repo is named 'neovim', so pin the plugin name
   { src = 'https://github.com/rose-pine/neovim', name = 'rose-pine' },
@@ -56,6 +56,21 @@ function M.setup()
   require('fzf-lua').register_ui_select()
 
   require('mini.pairs').setup()
+
+  -- Indent guide: a vertical line marking only the scope at the cursor,
+  -- drawn instantly (no animation). Visualization only — the textobjects
+  -- and motions stay off so native [i/]i and the i/a grammar are untouched.
+  local indentscope = require('mini.indentscope')
+  indentscope.setup({
+    symbol = '┊',
+    draw = { animation = indentscope.gen_animation.none() },
+    mappings = {
+      object_scope = '',
+      object_scope_with_border = '',
+      goto_top = '',
+      goto_bottom = '',
+    },
+  })
 
   -- Pair textobjects beyond stock Vim: q (nearest quotes of any kind) and
   -- m (helix's "closest surrounding pair"). Only iq/aq/im/am are mapped, in

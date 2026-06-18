@@ -85,7 +85,7 @@ process merely connected to the port is never offered as a target.
 ## Personalization layer
 
 Mirrors the user's actual Helix `config.toml`, not stock defaults: relative
-line numbers, soft wrap, bordered popups, `┊` indent guides, end-of-line
+line numbers, soft wrap, bordered popups, a `┊` active-scope indent guide, end-of-line
 diagnostics with expanded cursor-line rendering, colored `❮N❯/❮I❯/❮V❯` mode
 segment with git branch and worktree name (`main (kelowna)`), centered
 filename, rich right-side statusline
@@ -94,8 +94,8 @@ native `'tabline'`). Colorscheme: `melange` (`rose-pine` also installed).
 The scheme's background is reported to the terminal with OSC 11 (and
 reset with OSC 111 on exit/suspend), the same escape Helix emits — so
 Ghostty colors its tabs and titlebar to match the editor theme.
-Known gap: `indent-guides.skip-levels = 1` isn't expressible with
-`listchars` — guides start at column 1.
+The `┊` indent guide marks only the scope at the cursor (mini.indentscope),
+drawn instantly with no animation, rather than every indent level.
 
 ## Reading aids
 

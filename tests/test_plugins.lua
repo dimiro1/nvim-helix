@@ -79,12 +79,41 @@ T['every highlighted filetype has a parser queued for install'] = function()
   end
 end
 
-T['mini.clue, mini.pairs, mini.diff, mini.jump2d, mini.ai are set up'] = function()
+T['mini.clue, mini.pairs, mini.diff, mini.jump2d, mini.ai, mini.indentscope are set up'] = function()
   eq(child.lua_get([[type(_G.MiniClue)]]), 'table')
   eq(child.lua_get([[type(_G.MiniPairs)]]), 'table')
   eq(child.lua_get([[type(_G.MiniDiff)]]), 'table')
   eq(child.lua_get([[type(_G.MiniJump2d)]]), 'table')
   eq(child.lua_get([[type(_G.MiniAi)]]), 'table')
+  eq(child.lua_get([[type(_G.MiniIndentscope)]]), 'table')
+end
+
+T['the indent scope guide is the dotted vertical, drawn without animation'] = function()
+  eq(child.lua_get([[MiniIndentscope.config.symbol]]), '┊')
+  -- gen_animation.none yields a function that always returns 0ms wait, so
+  -- the scope line appears instantly rather than easing into view
+  eq(child.lua_get([[type(MiniIndentscope.config.draw.animation)]]), 'function')
+  eq(child.lua_get([[MiniIndentscope.config.draw.animation(1, 10)]]), 0)
+end
+
+T['mini.indentscope is visualization only: no scope mappings'] = function()
+  -- the textobjects/motions stay disabled so native [i/]i keep their
+  -- meaning and ii/ai never shadow the i/a grammar
+  local shadowed = child.lua_get([[(function()
+    local out = {}
+    for _, lhs in ipairs({ '[i', ']i' }) do
+      if vim.fn.maparg(lhs, 'n') ~= '' then table.insert(out, 'n ' .. lhs) end
+    end
+    for _, mode in ipairs({ 'x', 'o' }) do
+      for _, lhs in ipairs({ 'ii', 'ai' }) do
+        if vim.fn.maparg(lhs, mode) ~= '' then
+          table.insert(out, mode .. ' ' .. lhs)
+        end
+      end
+    end
+    return out
+  end)()]])
+  eq(shadowed, {})
 end
 
 T['mini.ai leaves the i/a grammar unshadowed'] = function()
