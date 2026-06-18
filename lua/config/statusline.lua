@@ -56,6 +56,11 @@ M.right_min_width = {
   filetype = 60,
 }
 
+-- A long center path is capped at this many display columns by abbreviating
+-- its interior directories, even when the window has room to spare; the
+-- window-derived budget shrinks it further when space is tight.
+M.path_max_width = 40
+
 -- Readable ink for a 0xRRGGBB fill: light fills get black text, dark
 -- fills get white, by Rec. 601 luma. Keeps badges legible on any theme.
 function M.ink(fill)
@@ -144,6 +149,33 @@ function M.dependency_hint(name)
   return name:match('^jdt://contents/([^/]+)')
 end
 
+-- First display character of a path component, preserving a leading dot so
+-- dotfiles stay recognizable (src -> s, .config -> .c).
+function M.initial(part)
+  local dot = part:sub(1, 1) == '.' and '.' or ''
+  return dot .. vim.fn.strcharpart(part:sub(#dot + 1), 0, 1)
+end
+
+-- Fit a path into `budget` display columns by shortening its interior
+-- directories to their initial letter, leftmost first (the least specific
+-- end), stopping as soon as it fits. The file name is never abbreviated.
+-- Returns the path unchanged when it already fits or the budget is unusable.
+function M.fit_path(path, budget)
+  if budget < 1 or M.display_width(path) <= budget then
+    return path
+  end
+  local parts = vim.split(path, '/', { plain = true })
+  for i = 1, #parts - 1 do
+    if M.display_width(table.concat(parts, '/')) <= budget then
+      break
+    end
+    if parts[i] ~= '' then
+      parts[i] = M.initial(parts[i])
+    end
+  end
+  return table.concat(parts, '/')
+end
+
 -- state: { mode_label, color, branch, worktree, file, dependency, modified,
 --          readonly, crumbs, ws_errors, ws_warnings, errors, warnings, line,
 --          col, encoding, line_ending, filetype, width }
@@ -165,13 +197,14 @@ function M.build(s)
   end
   local left = ' ' .. mode .. (vcs and ('  ' .. vcs) or '')
 
-  local center = s.file
-    .. (s.dependency and (' (' .. s.dependency .. ')') or '')
+  -- everything the center carries besides the path; measured so the path
+  -- can be shortened around it rather than at its expense
+  local extras = (s.dependency and (' (' .. s.dependency .. ')') or '')
     .. (s.modified and ' [+]' or '')
     .. (s.readonly and ' [RO]' or '')
   if s.crumbs and s.crumbs ~= '' then
     -- separator matches config.breadcrumbs.separator
-    center = center .. ' › ' .. s.crumbs
+    extras = extras .. ' › ' .. s.crumbs
   end
 
   local segments = {}
@@ -210,6 +243,17 @@ function M.build(s)
   end
 
   local right = table.concat(segments, '  ') .. ' '
+
+  -- Shorten the path's interior directories (leftmost first): always down to
+  -- the path cap, and further when the window can't seat the center between
+  -- the side segments.
+  local file = s.file
+  if s.width then
+    local budget = s.width - M.display_width(left) - M.display_width(right)
+      - M.display_width(extras) - 2
+    file = M.fit_path(file, math.min(budget, M.path_max_width))
+  end
+  local center = file .. extras
 
   -- True-center the center segment on the window midpoint: position it
   -- by hand from the segment widths instead of letting %= balance it in
