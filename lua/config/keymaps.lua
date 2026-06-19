@@ -61,7 +61,14 @@ M.specs = {
   { 'n', '<Leader>.', pick('explorer_buffer_dir'), "Open file explorer (buffer's directory)" },
 
   -- Space mode: LSP
-  { 'n', '<Leader>k', vim.lsp.buf.hover, 'Show docs under cursor' },
+  {
+    'n',
+    '<Leader>k',
+    function()
+      require('config.lsp').hover()
+    end,
+    'Show docs under cursor',
+  },
   { 'n', '<Leader>r', vim.lsp.buf.rename, 'Rename symbol' },
   { { 'n', 'x' }, '<Leader>a', vim.lsp.buf.code_action, 'Apply code action' },
 

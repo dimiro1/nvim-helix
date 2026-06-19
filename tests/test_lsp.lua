@@ -99,6 +99,74 @@ T['the jdt:// reader is a no-op when jdtls is not running'] = function()
   eq(result, '')
 end
 
+T['dismiss_float closes the doc preview and reports whether one was open'] = function()
+  local result = child.lua_get([[(function()
+    local lsp = require('config.lsp')
+    local buf = vim.api.nvim_get_current_buf()
+    local none = lsp.dismiss_float(buf)
+    -- record an open float the way open_floating_preview does, then dismiss it
+    local fbuf = vim.api.nvim_create_buf(false, true)
+    local win = vim.api.nvim_open_win(fbuf, false, {
+      relative = 'editor', width = 10, height = 1, row = 1, col = 1,
+    })
+    vim.b[buf].lsp_floating_preview = win
+    local closed = lsp.dismiss_float(buf)
+    return { none, closed, vim.api.nvim_win_is_valid(win) }
+  end)()]])
+  eq(result, { false, true, false })
+end
+
+T['space-k hover wires a single Esc to dismiss the float'] = function()
+  -- normal-mode <Esc> is otherwise unmapped: only <Esc><Esc> is bound
+  eq(child.lua_get([[vim.fn.maparg('<Esc>', 'n')]]), '')
+  child.lua([[require('config.lsp').hover()]])
+  -- hover installs a buffer-local <Esc> dismiss mapping (read scalar fields
+  -- only; the dict form carries the callback, which is not RPC-serializable)
+  eq(child.lua_get([[vim.fn.maparg('<Esc>', 'n', false, true).buffer]]), 1)
+  eq(child.lua_get([[vim.fn.maparg('<Esc>', 'n', false, true).desc]]), 'Dismiss hover docs')
+  -- pressing it closes an open preview float and removes itself
+  child.lua([[(function()
+    local fbuf = vim.api.nvim_create_buf(false, true)
+    _G._win = vim.api.nvim_open_win(fbuf, false, {
+      relative = 'editor', width = 10, height = 1, row = 1, col = 1,
+    })
+    vim.b[vim.api.nvim_get_current_buf()].lsp_floating_preview = _G._win
+  end)()]])
+  child.type_keys('<Esc>')
+  eq(child.lua_get([[vim.api.nvim_win_is_valid(_G._win)]]), false)
+  eq(child.lua_get([[vim.fn.maparg('<Esc>', 'n')]]), '')
+end
+
+T['the hover dismiss mapping tears down with the float on cursor move'] = function()
+  child.lua([[require('config.lsp').hover()]])
+  eq(child.lua_get([[vim.fn.maparg('<Esc>', 'n', false, true).buffer]]), 1)
+  -- moving the cursor closes the float natively; the dismiss map goes with it
+  -- so <Esc><Esc> search-clear is not left shadowed
+  child.lua([[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'one', 'two' })
+    vim.cmd('doautocmd CursorMoved')
+  ]])
+  eq(child.lua_get([[vim.fn.maparg('<Esc>', 'n')]]), '')
+end
+
+T['a focused doc float closes on Esc as well as q'] = function()
+  -- focusing a preview float (a second <Leader>k) fires WinEnter on a window
+  -- tagged with lsp_floating_bufnr; that arms a buffer-local Esc-to-close
+  local result = child.lua_get([[(function()
+    local src = vim.api.nvim_get_current_buf()
+    local fbuf = vim.api.nvim_create_buf(false, true)
+    local win = vim.api.nvim_open_win(fbuf, false, {
+      relative = 'editor', width = 10, height = 1, row = 1, col = 1,
+    })
+    vim.w[win].lsp_floating_bufnr = src
+    vim.api.nvim_set_current_win(win)
+    return vim.fn.maparg('<Esc>', 'n', false, true).buffer
+  end)()]])
+  eq(result, 1)
+  child.type_keys('<Esc>')
+  eq(child.lua_get([[#vim.api.nvim_list_wins()]]), 1)
+end
+
 T['completion hooks into LspAttach'] = function()
   local count = child.lua_get(
     [[#vim.api.nvim_get_autocmds({ group = 'config.lsp', event = 'LspAttach' })]]

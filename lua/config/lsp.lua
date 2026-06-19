@@ -99,6 +99,44 @@ function M.open_jdt_class(bufnr, uri)
   vim.lsp.buf_attach_client(bufnr, client.id)
 end
 
+-- Close the floating doc preview shown for `bufnr`, if one is open. The
+-- window id is the one open_floating_preview records on the source buffer.
+-- Returns true when a window was closed.
+function M.dismiss_float(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local win = vim.b[bufnr].lsp_floating_preview
+  if win and vim.api.nvim_win_is_valid(win) then
+    vim.api.nvim_win_close(win, true)
+    return true
+  end
+  return false
+end
+
+-- Show docs and let a single <Esc> dismiss the float without first focusing
+-- it (the float otherwise only closes on `q` once focused, or when the cursor
+-- moves). The mapping is buffer-local and fires instantly — nowait keeps it
+-- from stalling on the <Esc><Esc> search-clear chord — then tears itself down
+-- on the first press or when the float goes away, so plain <Esc> is otherwise
+-- untouched.
+function M.hover()
+  vim.lsp.buf.hover()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local function clear()
+    pcall(vim.keymap.del, 'n', '<Esc>', { buffer = bufnr })
+  end
+  vim.keymap.set('n', '<Esc>', function()
+    clear()
+    if not M.dismiss_float(bufnr) then
+      vim.api.nvim_feedkeys(vim.keycode('<Esc>'), 'n', false)
+    end
+  end, { buffer = bufnr, nowait = true, desc = 'Dismiss hover docs' })
+  vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI', 'BufLeave' }, {
+    buffer = bufnr,
+    once = true,
+    callback = clear,
+  })
+end
+
 function M.setup()
   for name, cfg in pairs(M.servers) do
     vim.lsp.config(name, cfg)
@@ -106,6 +144,24 @@ function M.setup()
   vim.lsp.enable(vim.tbl_keys(M.servers))
 
   local group = vim.api.nvim_create_augroup('config.lsp', {})
+
+  -- Once a doc float is focused (a second <Leader>k), <Esc> closes it the way
+  -- the built-in `q` does. open_floating_preview tags the float window with
+  -- lsp_floating_bufnr, so that var marks the windows we own.
+  vim.api.nvim_create_autocmd('WinEnter', {
+    group = group,
+    callback = function()
+      if vim.w.lsp_floating_bufnr == nil then
+        return
+      end
+      vim.keymap.set('n', '<Esc>', '<Cmd>bdelete<CR>', {
+        buffer = 0,
+        nowait = true,
+        silent = true,
+        desc = 'Close docs',
+      })
+    end,
+  })
 
   -- 'autocomplete' + the 'o' source drive as-you-type candidates; enabling
   -- vim.lsp.completion adds resolve popups, snippet expansion and
