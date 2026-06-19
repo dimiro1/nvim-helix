@@ -122,16 +122,15 @@ M.specs = {
   { 'n', 'gi', pick('implementations'), 'Goto implementation' },
   { 'n', 'gr', pick('references'), 'Goto references' },
 
-  -- Goto mode: word jump labels (helix gw; deliberately shadows Vim's
-  -- gw format operator)
+  -- Goto mode: incremental jump — type to narrow, labels appear live, press
+  -- one to jump. Deliberately shadows Vim's gw format operator (gq remains).
   {
     { 'n', 'x' },
     'gw',
     function()
-      local jump2d = require('mini.jump2d')
-      jump2d.start(jump2d.builtin_opts.word_start)
+      require('flash').jump()
     end,
-    'Jump to word (labels)',
+    'Jump (flash)',
   },
 
   -- Tree-sitter text objects

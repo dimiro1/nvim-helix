@@ -76,6 +76,24 @@ T['helix LSP gotos are mapped'] = function()
   end
 end
 
+T['gw jumps with flash labels in normal and visual mode'] = function()
+  for _, mode in ipairs({ 'n', 'x' }) do
+    eq(child.lua_get(([[vim.fn.maparg('gw', '%s', false, true).desc]]):format(mode)), 'Jump (flash)', mode)
+  end
+  -- gW is unmapped: flash owns the lowercase gw, no capital sibling
+  eq(child.lua_get([[vim.fn.maparg('gW', 'n')]]), '')
+end
+
+T['flash leaves the f/t/F/T and / search grammar stock'] = function()
+  -- flash's char and search modes would rebind these; both are disabled so
+  -- the jump only ever fires from the explicit gw invocation
+  for _, mode in ipairs({ 'n', 'x', 'o' }) do
+    for _, lhs in ipairs({ 'f', 't', 'F', 'T', ';', ',' }) do
+      eq(child.lua_get(([[vim.fn.maparg('%s', '%s')]]):format(lhs, mode)), '', mode .. ' ' .. lhs)
+    end
+  end
+end
+
 T['space-w aliases window mode'] = function()
   eq(child.lua_get([[vim.fn.maparg('<Leader>w', 'n')]]), '<C-W>')
 end

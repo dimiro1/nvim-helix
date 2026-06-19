@@ -11,7 +11,7 @@ local T = MiniTest.new_set({
 
 local eq = MiniTest.expect.equality
 
-T['exactly the nine agreed plugins are active'] = function()
+T['exactly the ten agreed plugins are active'] = function()
   local names = child.lua_get([[(function()
     local out = {}
     for _, p in ipairs(vim.pack.get()) do
@@ -21,7 +21,7 @@ T['exactly the nine agreed plugins are active'] = function()
     return out
   end)()]])
   eq(names, {
-    'fzf-lua', 'melange-nvim', 'mini.nvim', 'nvim-treesitter',
+    'flash.nvim', 'fzf-lua', 'melange-nvim', 'mini.nvim', 'nvim-treesitter',
     'nvim-treesitter-context', 'nvim-treesitter-textobjects', 'rose-pine',
     'vim-repeat', 'vim-surround',
   })
@@ -79,13 +79,25 @@ T['every highlighted filetype has a parser queued for install'] = function()
   end
 end
 
-T['mini.clue, mini.pairs, mini.diff, mini.jump2d, mini.ai, mini.indentscope are set up'] = function()
+T['mini.clue, mini.pairs, mini.diff, mini.ai, mini.indentscope are set up'] = function()
   eq(child.lua_get([[type(_G.MiniClue)]]), 'table')
   eq(child.lua_get([[type(_G.MiniPairs)]]), 'table')
   eq(child.lua_get([[type(_G.MiniDiff)]]), 'table')
-  eq(child.lua_get([[type(_G.MiniJump2d)]]), 'table')
   eq(child.lua_get([[type(_G.MiniAi)]]), 'table')
   eq(child.lua_get([[type(_G.MiniIndentscope)]]), 'table')
+  -- jumping moved to flash.nvim, so mini.jump2d is deliberately not set up
+  eq(child.lua_get([[_G.MiniJump2d == nil]]), true)
+end
+
+T['flash.nvim is set up with the colemak labels and grammar modes off'] = function()
+  eq(child.lua_get([[type(require('flash').jump)]]), 'function')
+  -- colemak home row plus a few easy neighbours
+  eq(child.lua_get([[require('flash.config').labels]]), 'arstneiodhgm')
+  -- no uppercase labels: excess matches must not spill into shift-typed letters
+  eq(child.lua_get([[require('flash.config').label.uppercase]]), false)
+  -- char (f/t/F/T) and search (/) integrations stay off: Vim owns that grammar
+  eq(child.lua_get([[require('flash.config').modes.char.enabled]]), false)
+  eq(child.lua_get([[require('flash.config').modes.search.enabled]]), false)
 end
 
 T['the indent scope guide is the dotted vertical, drawn without animation'] = function()
@@ -207,13 +219,6 @@ end
 T['the infobox window fits clue descriptions'] = function()
   eq(child.lua_get([[MiniClue.config.window.config.width]]), 'auto')
   eq(child.lua_get([[MiniClue.config.window.delay]]), 250)
-end
-
-T['jump labels use the colemak alphabet'] = function()
-  eq(
-    child.lua_get([[MiniJump2d.config.labels]]),
-    'arstgmneiodhfuclpwyvk'
-  )
 end
 
 T['hunk navigation uses helix keys'] = function()

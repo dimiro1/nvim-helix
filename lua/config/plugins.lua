@@ -12,9 +12,12 @@ M.specs = {
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter-context' },
   { src = 'https://github.com/tpope/vim-surround' },
   { src = 'https://github.com/tpope/vim-repeat' },
-  -- Modules used: mini.clue (infobox), mini.pairs, mini.diff, mini.jump2d,
-  -- mini.ai, mini.indentscope, mini.test. Nothing else.
+  -- Modules used: mini.clue (infobox), mini.pairs, mini.diff, mini.ai,
+  -- mini.indentscope, mini.test. Nothing else.
   { src = 'https://github.com/nvim-mini/mini.nvim' },
+  -- incremental search-with-labels jump: type to narrow and labels update
+  -- live, a form native search lacks
+  { src = 'https://github.com/folke/flash.nvim' },
   -- colorschemes; the repo is named 'neovim', so pin the plugin name
   { src = 'https://github.com/rose-pine/neovim', name = 'rose-pine' },
   { src = 'https://github.com/savq/melange-nvim' },
@@ -97,11 +100,19 @@ function M.setup()
     },
   })
 
-  -- helix gw word labels; alphabet from the user's helix config (colemak)
-  require('mini.jump2d').setup({
-    labels = 'arstgmneiodhfuclpwyvk',
-    mappings = { start_jumping = '' }, -- gw is mapped in config.keymaps
-    silent = true,
+  -- Incremental jump (gw, mapped in config.keymaps): type to narrow, labels
+  -- update live, press one to jump. char/search modes are off so f/t/F/T and
+  -- / stay stock grammar; flash only ever fires from its explicit invocation.
+  -- Labels are the colemak home row plus a few easy neighbours, lowercase
+  -- only (uppercase is off, so excess matches never spill into shift-typed
+  -- labels).
+  require('flash').setup({
+    labels = 'arstneiodhgm',
+    label = { uppercase = false },
+    modes = {
+      char = { enabled = false },
+      search = { enabled = false },
+    },
   })
 
   require('mini.diff').setup({
