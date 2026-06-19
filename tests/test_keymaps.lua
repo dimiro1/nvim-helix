@@ -98,6 +98,17 @@ T['cmdline ctrl-a/ctrl-e jump to start and end'] = function()
   child.type_keys('<Esc>')
 end
 
+T['double Esc clears search highlights'] = function()
+  child.lua([[
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { 'foo bar foo', 'baz' })
+    vim.o.hlsearch = true
+  ]])
+  child.type_keys('/foo<CR>')
+  eq(child.lua_get([[vim.v.hlsearch]]), 1)
+  child.type_keys('<Esc><Esc>')
+  eq(child.lua_get([[vim.v.hlsearch]]), 0)
+end
+
 T['marks survive: m is not remapped'] = function()
   eq(child.lua_get([[vim.fn.maparg('m', 'n')]]), '')
 end

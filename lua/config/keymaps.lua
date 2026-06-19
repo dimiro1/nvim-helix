@@ -72,6 +72,9 @@ M.specs = {
   { 'n', '<Leader>P', '"+P', 'Paste clipboard before' },
   { 'x', '<Leader>R', '"+p', 'Replace selection with clipboard' },
 
+  -- Clear search highlights
+  { 'n', '<Esc><Esc>', '<Cmd>nohlsearch<CR>', 'Clear search highlights' },
+
   -- Space mode: misc
   { 'n', '<Leader>c', 'gcc', 'Toggle comment', remap = true },
   { 'x', '<Leader>c', 'gc', 'Toggle comment', remap = true },
