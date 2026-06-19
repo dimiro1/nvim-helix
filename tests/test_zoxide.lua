@@ -58,6 +58,45 @@ T['pick delegates to the built-in zoxide picker, layering ctrl-f'] = function()
   })
 end
 
+T['pick previews the reconstructed parent/leaf directory'] = function()
+  -- filename_first splits the entry into score/leaf/parent, so the stock
+  -- {2} preview would list the bare leaf name and fail; the override must
+  -- target {3}/{2} so the preview tracks the real directory
+  local preview = child.lua_get([[(function()
+    local seen = {}
+    require('fzf-lua').zoxide = function(opts) seen.opts = opts or false end
+    require('config.zoxide').pick()
+    return type(seen.opts) == 'table' and seen.opts.preview or nil
+  end)()]])
+  eq(type(preview), 'string')
+  -- reconstructs parent/leaf
+  eq(preview:find('{3}/{2}', 1, true) ~= nil, true)
+  -- and never lists the bare leaf via the stock whole-path placeholder
+  eq(preview:find(' {2}', 1, true), nil)
+end
+
+T["enter cd's to the reconstructed directory, not the parent"] = function()
+  -- filename_first lays each entry out as score/leaf/parent, so cd'ing to the
+  -- last tab field (the stock behavior) would land in the parent; the action
+  -- must rejoin parent/leaf. Covers field-highlight stripping and spaced names.
+  local got = child.lua_get([[(function()
+    local seen, captured = {}, {}
+    require('fzf-lua').zoxide = function(opts) seen.opts = opts end
+    require('fzf-lua.actions').zoxide_cd = function(selected)
+      captured[#captured + 1] = selected[1]
+    end
+    require('config.zoxide').pick()
+    local enter = seen.opts.actions.enter
+    enter({ '  132.0\tcompound\t\27[3m/Users/claudemiro/DevPersonal\27[0m' }, {})
+    enter({ '    3.5\tSpaceshelf mac\t\27[3m/Users/claudemiro\27[0m' }, {})
+    return captured
+  end)()]])
+  eq(got, {
+    '/Users/claudemiro/DevPersonal/compound',
+    '/Users/claudemiro/Spaceshelf mac',
+  })
+end
+
 T[':Z command is registered'] = function()
   eq(child.lua_get([[vim.api.nvim_get_commands({})['Z'] ~= nil]]), true)
 end

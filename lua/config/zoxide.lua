@@ -58,17 +58,59 @@ function M.start_in_top()
   return true
 end
 
+-- The filename_first formatter (set globally) lays each entry out as three
+-- tab fields — score, leaf, parent — instead of the whole path the built-in
+-- picker's preview and Enter action both assume. The two helpers below put
+-- the directory back together: the preview lists the reconstructed `{3}/{2}`
+-- (parent/leaf), and the action rejoins parent/leaf before cd'ing.
+
+-- The lsd/eza/ls cascade mirrors the built-in picker's, keeping the preview's
+-- look unchanged. fzf strips the field highlights and quotes each field, so
+-- `{3}/{2}` stays correct for directory names containing spaces.
+local function preview_cmd()
+  local dir = '{3}/{2}'
+  if vim.fn.executable('lsd') == 1 then
+    return 'lsd -la --color=always --icon=always --group-directories-first --literal ' .. dir
+  elseif vim.fn.executable('eza') == 1 then
+    return 'eza -la --color=always --icons -g --group-directories-first ' .. dir
+  end
+  return 'ls -la ' .. dir
+end
+
+-- Rebuild the full directory from a selected entry. zoxide_cd would otherwise
+-- cd to the entry's last tab field, which filename_first makes the parent.
+-- fzf-lua's own entry reversers (_fmt.from, path.entry_to_file) assume a file
+-- entry and mis-parse zoxide's leading score field, so we split the fields
+-- ourselves but lean on its helpers to drop the highlights and rejoin the path.
+local function selected_dir(entry)
+  local utils = require('fzf-lua.utils')
+  local fields = vim.split(utils.strip_ansi_coloring(entry), '\t', { plain = true })
+  if #fields < 3 then
+    return fields[#fields] -- score⇥path, nothing to rejoin
+  end
+  return require('fzf-lua.path').join({ fields[#fields], fields[2] }) -- parent/leaf
+end
+
+-- cd to the chosen directory by handing zoxide_cd a single-field path, so its
+-- cd, db-feed, and scope/git-root handling all carry over unchanged.
+local function cd_selected(selected, opts)
+  if not selected[1] then
+    return
+  end
+  require('fzf-lua.actions').zoxide_cd({ selected_dir(selected[1]) }, opts)
+end
+
 -- The built-in picker lists with scores, previews the directory, and its Enter
 -- action cd's and feeds the db. We only layer Ctrl-f on top: cd, then open the
 -- file picker in the chosen directory.
 function M.pick()
-  local zoxide_cd = require('fzf-lua.actions').zoxide_cd
   fzf().zoxide({
     prompt = require('config.pickers').PROMPTS.zoxide,
+    preview = preview_cmd(),
     actions = {
-      enter = zoxide_cd,
+      enter = cd_selected,
       ['ctrl-f'] = function(selected, opts)
-        zoxide_cd(selected, opts)
+        cd_selected(selected, opts)
         require('config.pickers').files_cwd()
       end,
     },

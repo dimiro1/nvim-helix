@@ -165,6 +165,45 @@ T['fzf-lua backs vim.ui.select (code actions et al.)'] = function()
   )
 end
 
+T['fzf-lua pickers lead with the path tail (filename_first)'] = function()
+  -- the global default must reach zoxide too: zoxide ships its own
+  -- dirname_first default, which left-anchors and so truncates the leaf
+  -- directory — the identifying part — on long paths
+  local resolved = child.lua_get([[(function()
+    local config = require('fzf-lua.config')
+    local files = config.normalize_opts({}, 'files')
+    local zoxide = config.normalize_opts({}, 'zoxide')
+    return {
+      files = files.formatter,
+      zoxide = zoxide.formatter,
+      files_fmt = files._fmt and type(files._fmt.to) == 'function',
+      zoxide_fmt = zoxide._fmt and type(zoxide._fmt.to) == 'function',
+    }
+  end)()]])
+  eq(resolved, {
+    files = 'path.filename_first',
+    zoxide = 'path.filename_first',
+    files_fmt = true,
+    zoxide_fmt = true,
+  })
+end
+
+T['the path tail is rendered ahead of its parent'] = function()
+  -- behavioral: the formatter must actually reorder so the long parent
+  -- prefix (not the leaf) is what overflows and truncates
+  local rendered = child.lua_get([[(function()
+    local config = require('fzf-lua.config')
+    local zoxide = config.normalize_opts({}, 'zoxide')
+    local out = zoxide._fmt.to('/Users/me/DevPersonal/Saldo/competition', zoxide, {
+      path = require('fzf-lua.path'),
+      utils = require('fzf-lua.utils'),
+    })
+    -- strip the dir-part highlight's ansi escapes for a stable assertion
+    return (out:gsub('\27%[[0-9;]*m', ''))
+  end)()]])
+  eq(rendered, 'competition\t/Users/me/DevPersonal/Saldo')
+end
+
 T['the infobox window fits clue descriptions'] = function()
   eq(child.lua_get([[MiniClue.config.window.config.width]]), 'auto')
   eq(child.lua_get([[MiniClue.config.window.delay]]), 250)

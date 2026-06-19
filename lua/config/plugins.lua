@@ -51,7 +51,10 @@ function M.setup()
   -- sticky scope headers while scrolling; capped so it never eats the view
   require('treesitter-context').setup({ max_lines = 3 })
 
-  require('fzf-lua').setup({})
+  -- Lead every path entry with its tail (file name, or leaf directory for
+  -- zoxide) and trail the parent dimmed. Long lines then truncate the
+  -- redundant parent prefix instead of the identifying tail.
+  require('fzf-lua').setup({ defaults = { formatter = 'path.filename_first' } })
   -- vim.ui.select prompts (code actions, …) go through the picker surface
   require('fzf-lua').register_ui_select()
 
