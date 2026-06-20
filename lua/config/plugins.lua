@@ -21,6 +21,7 @@ M.specs = {
   -- colorschemes; the repo is named 'neovim', so pin the plugin name
   { src = 'https://github.com/rose-pine/neovim', name = 'rose-pine' },
   { src = 'https://github.com/savq/melange-nvim' },
+  { src = 'https://github.com/54L1M/Oshen.nvim' },
 }
 
 -- Parsers in priority order. lua is bundled with Neovim, but installing
@@ -154,8 +155,12 @@ function M.setup()
     },
   })
 
+  -- Oshen resolves its colorschemes (oshen-night/oshen-day) only after its
+  -- setup runs.
+  require('oshen').setup()
+
   -- plugin colorscheme, so it can only load after pack.add
-  vim.cmd.colorscheme('melange')
+  vim.cmd.colorscheme('oshen-night')
 end
 
 return M
