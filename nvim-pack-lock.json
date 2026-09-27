@@ -4,12 +4,16 @@
       "rev": "cc69305a7fdbc78452316bc90ae33c342b5d6f7f",
       "src": "https://github.com/54L1M/Oshen.nvim"
     },
+    "catppuccin": {
+      "rev": "0a5de4da015a175f416d6ef1eda84661623e0500",
+      "src": "https://github.com/catppuccin/nvim"
+    },
     "flash.nvim": {
-      "rev": "fcea7ff883235d9024dc41e638f164a450c14ca2",
+      "rev": "5f0f270fdc7c5b0c21d903ee85b9cb06f2ac636a",
       "src": "https://github.com/folke/flash.nvim"
     },
     "fzf-lua": {
-      "rev": "988416cc782dfe28bff3f0da9b8c943b236cd86a",
+      "rev": "ec1b98d3f5f44a1cff1f2c3832af2f09c3d806ca",
       "src": "https://github.com/ibhagwan/fzf-lua"
     },
     "melange-nvim": {
@@ -17,22 +21,26 @@
       "src": "https://github.com/savq/melange-nvim"
     },
     "mini.nvim": {
-      "rev": "ff8b3580935818ef2f21bdd651f057a2ae071eab",
+      "rev": "561751e839b99a4baca36b9d963166b66d2536a6",
       "src": "https://github.com/nvim-mini/mini.nvim"
     },
     "nvim-treesitter": {
-      "rev": "4916d6592ede8c07973490d9322f187e07dfefac",
+      "rev": "728e031f6b11d03d1f0708b7dc4fb0f1d9c8a137",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter",
       "version": "'main'"
     },
     "nvim-treesitter-context": {
-      "rev": "b311b30818951d01f7b4bf650521b868b3fece16",
+      "rev": "f3061339b8eaf9fda873600bc425b8d2d8502533",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter-context"
     },
     "nvim-treesitter-textobjects": {
-      "rev": "851e865342e5a4cb1ae23d31caf6e991e1c99f1e",
+      "rev": "5c7b0263797dfd1bd6202f2b219f3b53a80b2187",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter-textobjects",
       "version": "'main'"
+    },
+    "orgmode": {
+      "rev": "26aa4fa26c570da6eb6798fb1b8df364204c3d99",
+      "src": "https://github.com/nvim-orgmode/orgmode"
     },
     "rose-pine": {
       "rev": "ff483051a47e27d84bdef47703538df1ed9f4a47",
