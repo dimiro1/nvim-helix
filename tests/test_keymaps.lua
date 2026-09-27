@@ -98,10 +98,48 @@ T['space-w aliases window mode'] = function()
   eq(child.lua_get([[vim.fn.maparg('<Leader>w', 'n')]]), '<C-W>')
 end
 
-T['cmdline arrows stay on history while the completion menu is open'] = function()
-  for _, lhs in ipairs({ '<Up>', '<Down>' }) do
-    eq(child.lua_get(([[vim.fn.maparg('%s', 'c', false, true).expr]]):format(lhs)), 1, lhs)
-  end
+T['cmdline Ctrl-N and Ctrl-P select from the auto-opened menu'] = function()
+  child.type_keys(':', 'ech')
+  eq(child.lua_get([[vim.fn.wildmenumode()]]), 1)
+  eq(child.lua_get([[vim.fn.cmdcomplete_info().selected]]), -1)
+  child.type_keys('<C-n>')
+  local first = child.lua_get([[vim.fn.cmdcomplete_info().selected]])
+  eq(first >= 0, true)
+  eq(child.lua_get([[vim.fn.wildmenumode()]]), 1)
+  child.type_keys('<C-n>')
+  eq(child.lua_get([[vim.fn.cmdcomplete_info().selected]]) ~= first, true)
+  child.type_keys('<C-p>')
+  eq(child.lua_get([[vim.fn.cmdcomplete_info().selected]]), first)
+  child.type_keys('<Esc>')
+end
+
+T['cmdline Ctrl-P can select backward from an unselected menu'] = function()
+  child.type_keys(':', 'ech')
+  eq(child.lua_get([[vim.fn.cmdcomplete_info().selected]]), -1)
+  child.type_keys('<C-p>')
+  eq(child.lua_get([[vim.fn.cmdcomplete_info().selected >= 0]]), true)
+  eq(child.lua_get([[vim.fn.wildmenumode()]]), 1)
+  child.type_keys('<Esc>')
+end
+
+T['cmdline arrows recall full history past the completion menu'] = function()
+  child.type_keys(':', 'echo 42', '<CR>')
+  eq(child.lua_get([[vim.fn.histget(':', -1)]]), 'echo 42')
+  child.type_keys(':', 'ech')
+  eq(child.lua_get([[vim.fn.wildmenumode()]]), 1)
+  child.type_keys('<Up>')
+  eq(child.lua_get([[vim.fn.getcmdline()]]), 'echo 42')
+  child.type_keys('<Down>')
+  eq(child.lua_get([[vim.fn.getcmdline()]]), 'ech')
+  child.type_keys('<Esc>')
+end
+
+T['cmdline Ctrl-K deletes from the cursor through the right edge'] = function()
+  child.type_keys(':', 'echo abc', '<C-a>', '<Right><Right><Right><Right>')
+  eq(child.lua_get([[vim.fn.getcmdpos()]]), 5)
+  child.type_keys('<C-k>')
+  eq(child.lua_get([[vim.fn.getcmdline()]]), 'echo')
+  child.type_keys('<Esc>')
 end
 
 T['cmdline ctrl-a/ctrl-e jump to start and end'] = function()

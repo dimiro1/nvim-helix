@@ -226,10 +226,8 @@ T['hunk navigation uses helix keys'] = function()
   eq(child.lua_get([[vim.fn.maparg('[g', 'n') ~= '']]), true)
 end
 
-T['the colorscheme is oshen-night (dark)'] = function()
-  -- both Oshen variants report colors_name 'Oshen'; only background tells the
-  -- dark night scheme apart from the light day one
-  eq(child.lua_get([[vim.g.colors_name]]), 'Oshen')
+T['the colorscheme is melange (dark)'] = function()
+  eq(child.lua_get([[vim.g.colors_name]]), 'melange')
   eq(child.lua_get([[vim.o.background]]), 'dark')
 end
 

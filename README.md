@@ -75,6 +75,11 @@ with `:lua vim.pack.update()`, review the diff, `:write` to confirm.
 Everything else is stock Vim. Pressing `Space`, `g`, `z`, `Ctrl-w`, `[`, `]`
 pops a Helix-style infobox (mini.clue) listing the continuations.
 
+At the native `:` command line, completion opens as you type. `Ctrl-n` and
+`Ctrl-p` move through matches; Up and Down recall command history regardless
+of the typed prefix; `Ctrl-k` deletes from the cursor to the end. `q:` opens
+the editable command history, and `:history` lists it.
+
 ## Utility commands
 
 `:KillPort [port]` — kill the process listening on a TCP port. Prompts for

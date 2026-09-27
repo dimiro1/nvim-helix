@@ -160,7 +160,7 @@ function M.setup()
   require('oshen').setup()
 
   -- plugin colorscheme, so it can only load after pack.add
-  vim.cmd.colorscheme('oshen-night')
+  vim.cmd.colorscheme('melange')
 end
 
 return M

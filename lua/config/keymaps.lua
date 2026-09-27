@@ -156,25 +156,46 @@ M.specs = {
   { { 'x', 'o' }, 'im', pair_textobject('i', 'm'), 'Surrounding pair (inner)' },
   { { 'x', 'o' }, 'am', pair_textobject('a', 'm'), 'Surrounding pair (around)' },
 
-  -- Cmdline autocompletion pops a menu while typing, which would steal the
-  -- arrows for menu selection. While the menu is open, <C-e> closes it and
-  -- restores the typed text, so the arrow then recalls history as usual.
+  -- Cmdline autocompletion pops a menu while typing. Ctrl-Z is wildcharm:
+  -- unlike Tab, it triggers completion from a mapping. Ctrl-N needs it to
+  -- select the first item; native Ctrl-P already navigates backward.
+  {
+    'c',
+    '<C-n>',
+    function()
+      return vim.fn.wildmenumode() == 1 and '<C-z>' or '<C-n>'
+    end,
+    'Next cmdline completion, else newer history',
+    expr = true,
+  },
+  -- Arrows always recall history, even when the typed prefix matches no past
+  -- command. Ctrl-E first dismisses the popup without changing the input.
   {
     'c',
     '<Up>',
     function()
-      return vim.fn.wildmenumode() == 1 and '<C-e><Up>' or '<Up>'
+      return vim.fn.wildmenumode() == 1 and '<C-e><S-Up>' or '<S-Up>'
     end,
-    'History up (past completion menu)',
+    'Older cmdline history',
     expr = true,
   },
   {
     'c',
     '<Down>',
     function()
-      return vim.fn.wildmenumode() == 1 and '<C-e><Down>' or '<Down>'
+      return vim.fn.wildmenumode() == 1 and '<C-e><S-Down>' or '<S-Down>'
     end,
-    'History down (past completion menu)',
+    'Newer cmdline history',
+    expr = true,
+  },
+  {
+    'c',
+    '<C-k>',
+    function()
+      vim.fn.setcmdline(vim.fn.getcmdline():sub(1, vim.fn.getcmdpos() - 1))
+      return ''
+    end,
+    'Delete cmdline from cursor to end',
     expr = true,
   },
   -- Readline-style cursor jumps; <C-a> shadows the native insert-all-matches

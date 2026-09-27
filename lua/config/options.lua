@@ -51,6 +51,7 @@ o.shortmess = o.shortmess .. 'cS'
 -- type, nothing preselected so the typed text is never clobbered, fuzzy
 -- filtering to match the pickers.
 o.wildmode = 'noselect:lastused,full'
+o.wildcharm = 26 -- Ctrl-Z; completion trigger usable from cmdline mappings
 vim.opt.wildoptions:append('fuzzy')
 vim.api.nvim_create_autocmd('CmdlineChanged', {
   pattern = { ':', '/', '\\?' },
