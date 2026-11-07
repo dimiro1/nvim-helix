@@ -19,8 +19,9 @@ plugins or shadow Vim grammar keys need to clear those bars, not just work.
   on 2026-06-10.)
 - **Lua changes also pass `make check`** — a lua_ls `--check` sweep with
   the same settings the editor uses; fix findings, don't suppress them.
-- **Neutral namespaces**: modules live in `lua/config/`; no codenames or
-  theme branding in file structure.
+- **Neutral namespaces**: modules live in `lua/config/`; no codenames.
+  Colorscheme modules use their theme's name (for
+  example, `lua/config/anysphere.lua`), as requested by the user.
 - The vim.pack lockfile `nvim-pack-lock.json` is committed; don't hand-edit.
 - nvim-treesitter and nvim-treesitter-textobjects are pinned to their `main`
   branches — the default branches are frozen legacy. Don't "fix" the pin.
@@ -29,7 +30,8 @@ plugins or shadow Vim grammar keys need to clear those bars, not just work.
 
 - `init.lua` — entry; makes itself location-independent (tests boot
   `nvim --clean -u init.lua`)
-- `lua/config/{options,plugins,lsp,keymaps,pickers,explorer,zoxide,everything,commands,worktrees,permalink,processes,statusline,tabline,breadcrumbs,terminal,termbg}.lua`
+- `lua/config/{options,plugins,anysphere,lsp,keymaps,pickers,explorer,tree,zoxide,everything,commands,worktrees,permalink,processes,statusline,tabline,breadcrumbs,terminal,termbg}.lua`
+- `colors/anysphere.lua` — native `:colorscheme anysphere` entry point
 - `tests/test_*.lua` — one file per module plus behavioral textobject tests
 - The target look mirrors the user's personal Helix `config.toml` (see
   README "Personalization layer"), not stock Helix defaults.

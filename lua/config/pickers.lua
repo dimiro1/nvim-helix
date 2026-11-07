@@ -11,6 +11,14 @@ end
 -- Workspace root: VCS root of the current buffer, else cwd. The shared anchor
 -- the file pickers and the explorer/everything modules root themselves at.
 function M.workspace_root()
+  -- A tree buffer's name is synthetic. Its actual root still anchors
+  -- pickers when the sidebar is focused and cwd belongs somewhere else.
+  if vim.bo.filetype == 'NvimTree' then
+    local node = require('nvim-tree.api').tree.get_nodes()
+    if node then
+      return vim.fs.root(node.absolute_path, '.git') or node.absolute_path
+    end
+  end
   local name = vim.api.nvim_buf_get_name(0)
   local dir = name ~= '' and vim.fs.dirname(name) or assert(vim.uv.cwd())
   return vim.fs.root(dir, '.git') or assert(vim.uv.cwd())

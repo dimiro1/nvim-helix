@@ -11,7 +11,7 @@ local T = MiniTest.new_set({
 
 local eq = MiniTest.expect.equality
 
-T['exactly the eleven agreed plugins are active'] = function()
+T['exactly the twelve agreed plugins are active'] = function()
   local names = child.lua_get([[(function()
     local out = {}
     for _, p in ipairs(vim.pack.get()) do
@@ -22,6 +22,7 @@ T['exactly the eleven agreed plugins are active'] = function()
   end)()]])
   eq(names, {
     'Oshen.nvim', 'flash.nvim', 'fzf-lua', 'melange-nvim', 'mini.nvim',
+    'nvim-tree.lua',
     'nvim-treesitter', 'nvim-treesitter-context',
     'nvim-treesitter-textobjects', 'rose-pine', 'vim-repeat', 'vim-surround',
   })
@@ -226,14 +227,14 @@ T['hunk navigation uses helix keys'] = function()
   eq(child.lua_get([[vim.fn.maparg('[g', 'n') ~= '']]), true)
 end
 
-T['the colorscheme is melange (dark)'] = function()
-  eq(child.lua_get([[vim.g.colors_name]]), 'melange')
+T['the colorscheme is anysphere (dark)'] = function()
+  eq(child.lua_get([[vim.g.colors_name]]), 'anysphere')
   eq(child.lua_get([[vim.o.background]]), 'dark')
 end
 
-T['theme plugins provide loadable colorschemes'] = function()
+T['local and plugin themes provide loadable colorschemes'] = function()
   -- Oshen's night/day schemes only resolve once its setup has run at boot
-  for _, name in ipairs({ 'rose-pine', 'melange', 'oshen-night', 'oshen-day' }) do
+  for _, name in ipairs({ 'anysphere', 'rose-pine', 'melange', 'oshen-night', 'oshen-day' }) do
     eq(
       child.lua_get(([[pcall(vim.cmd.colorscheme, '%s')]]):format(name)),
       true

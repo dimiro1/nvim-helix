@@ -4,6 +4,9 @@ local M = {}
 
 M.specs = {
   { src = 'https://github.com/ibhagwan/fzf-lua' },
+  -- persistent project tree with a Git-clean filter; the picker explorer
+  -- and native directory browsing do not provide this review view
+  { src = 'https://github.com/nvim-tree/nvim-tree.lua' },
   -- 'main' pins are load-bearing: the default branches are frozen legacy.
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter', version = 'main' },
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter-textobjects', version = 'main' },
@@ -159,8 +162,9 @@ function M.setup()
   -- setup runs.
   require('oshen').setup()
 
-  -- plugin colorscheme, so it can only load after pack.add
-  vim.cmd.colorscheme('melange')
+  -- Local port of the user's Emacs theme; load after plugin defaults so
+  -- the picker, tree, and mini modules share its palette as well.
+  vim.cmd.colorscheme('anysphere')
 end
 
 return M

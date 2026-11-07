@@ -56,6 +56,7 @@ M.specs = {
   { 'n', '<Leader>?', pick('command_palette'), 'Open command palette' },
   { 'n', "<Leader>'", pick('resume'), 'Open last picker' },
   { 'n', '<Leader>e', pick('directories'), 'Search directories in workspace' },
+  { 'n', '<Leader>E', function() require('config.tree').toggle() end, 'Toggle project tree' },
   { 'n', '<Leader>z', pick('zoxide'), 'Open recent directory picker (zoxide)' },
   { 'n', '<Leader>W', pick('worktrees'), 'Open worktree picker (switch workspace)' },
   { 'n', '<Leader>.', pick('explorer_buffer_dir'), "Open file explorer (buffer's directory)" },

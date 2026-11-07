@@ -91,6 +91,11 @@ function M.switch(target)
     return false
   end
 
+  -- On Neovim 0.12, sessions cannot restore nvim-tree's scratch buffers.
+  -- Save the editing windows, then reopen the sidebar at the new root.
+  local tree = require('nvim-tree.api').tree
+  local tree_visible = tree.is_visible({ any_tabpage = true })
+  tree.close_in_all_tabs()
   vim.cmd('mksession! ' .. vim.fn.fnameescape(M.session_file(current)))
   vim.cmd('silent! %bdelete')
   vim.cmd.cd(vim.fn.fnameescape(target)) -- feeds zoxide, refreshes branch
@@ -100,6 +105,9 @@ function M.switch(target)
     vim.cmd('silent! source ' .. vim.fn.fnameescape(session))
   else
     M.on_first_visit()
+  end
+  if tree_visible then
+    tree.toggle({ path = target, find_file = true, focus = false })
   end
   return true
 end

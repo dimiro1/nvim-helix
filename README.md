@@ -9,10 +9,10 @@ Two laws decide everything here (see `CONTEXT.md` and `docs/adr/`):
 1. **Fidelity Rule** — Helix owns Space mode and LSP gotos; Vim owns the
    grammar (motions, operators, text objects, marks, registers, search).
 2. **Native-first** — a plugin must provide something Neovim structurally
-   lacks. Seven plugins pass the bar: fzf-lua, nvim-treesitter,
-   nvim-treesitter-textobjects, nvim-treesitter-context, vim-surround,
-   vim-repeat, mini.nvim (clue/pairs/diff/jump2d/test modules only). Plugin
-   management is native `vim.pack`; completion is the native
+   lacks. Plugins supply pickers (fzf-lua), a Git-filterable project tree
+   (nvim-tree), tree-sitter features, surrounds, incremental label jumps
+   (flash.nvim), small editing/UI modules (mini.nvim), and colorschemes.
+   Plugin management is native `vim.pack`; completion is the native
    `'autocomplete'` option; LSP servers are hand-configured system binaries.
 
 ## Requirements
@@ -54,6 +54,7 @@ with `:lua vim.pack.update()`, review the diff, `:write` to confirm.
 | `Space ?` | command palette — preview shows the command's `:help` entry, else its description |
 | `Space '` | resume last picker |
 | `Space e` | directory search across the whole workspace → explorer at the pick |
+| `Space E` | toggle project tree at the workspace root, revealing the current file |
 | `Space .` | file explorer at the buffer's directory (level-by-level, `../` to go up) |
 | `Space z` / `:Z [query]` | recent directories via zoxide (Enter = cd, `Ctrl-f` = cd + file picker); every `:cd` feeds the zoxide db |
 | `Space W` / `:Worktrees` | switch git worktree, swapping workspaces — buffers/layout saved per worktree, restored on return; blocked while unsaved buffers exist; first visit opens the file picker |
@@ -80,6 +81,39 @@ At the native `:` command line, completion opens as you type. `Ctrl-n` and
 of the typed prefix; `Ctrl-k` deletes from the cursor to the end. `q:` opens
 the editable command history, and `:history` lists it.
 
+## Project tree
+
+`Space E` opens a persistent sidebar at the current file's workspace root.
+Inside the tree:
+
+| Key | Action |
+|---|---|
+| `Enter` / `o` | open file or expand/collapse directory |
+| `C` | toggle changed files only (staged, unstaged, and untracked) |
+| `/` | filter filenames with a Vim regular expression; `Enter` keeps the filter |
+| `F` | clear the filename filter, keeping the Git filter |
+| `>` / `<` | widen / narrow by 5 columns; counts work, e.g. `2>` adds 10 |
+| `E` / `W` | expand / collapse all directories |
+| `g?` | show all tree keybindings |
+
+`/` expands nested directories before filtering, subject to nvim-tree's
+300-folder discovery limit. Dotfiles are visible; Git metadata and ignored
+files are hidden. The changed-only view follows working-tree Git status;
+committed branch changes are outside its scope.
+
+Width commands work even while an editing window is focused:
+
+```vim
+:NvimTreeResize +5
+:NvimTreeResize -5
+:NvimTreeResize 40
+```
+
+Width adjustments persist when toggling the tree during the current Neovim
+session. `Space e`, `Space .`, and `Space g` keep their existing pickers.
+An open sidebar follows worktree switches, while focus returns to the
+target workspace's editing window.
+
 ## Utility commands
 
 `:KillPort [port]` — kill the process listening on a TCP port. Prompts for
@@ -95,7 +129,14 @@ diagnostics with expanded cursor-line rendering, colored `❮N❯/❮I❯/❮V�
 segment with git branch and worktree name (`main (kelowna)`), centered
 filename, rich right-side statusline
 segments, and a bufferline that appears only with 2+ buffers (hand-rolled
-native `'tabline'`). Colorscheme: `melange` (`rose-pine` also installed).
+native `'tabline'`). Colorscheme: `anysphere`, a local port of
+`~/.emacs.d/themes/anysphere-theme.el`: charcoal background, italic grey
+comments, teal keywords, pink strings, peach declarations, gold calls and
+numbers, blue types, and lavender properties. It covers native completion,
+LSP tokens and diagnostics, pickers, the project tree, and inline diffs.
+Use `:colorscheme anysphere` to apply it to an existing session;
+`rose-pine`, `melange`, `oshen-night`, and `oshen-day` remain available.
+Palette attribution and license: [docs/anysphere-LICENSE](docs/anysphere-LICENSE).
 The scheme's background is reported to the terminal with OSC 11 (and
 reset with OSC 111 on exit/suspend), the same escape Helix emits — so
 Ghostty colors its tabs and titlebar to match the editor theme.
