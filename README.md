@@ -10,7 +10,8 @@ Two laws decide everything here (see `CONTEXT.md` and `docs/adr/`):
    grammar (motions, operators, text objects, marks, registers, search).
 2. **Native-first** — a plugin must provide something Neovim structurally
    lacks. Plugins supply pickers (fzf-lua), a Git-filterable project tree
-   (nvim-tree), tree-sitter features, surrounds, incremental label jumps
+   (nvim-tree), interactive Git operations (vim-fugitive), tree-sitter
+   features, surrounds, incremental label jumps
    (flash.nvim), small editing/UI modules (mini.nvim), and colorschemes.
    Plugin management is native `vim.pack`; completion is the native
    `'autocomplete'` option; LSP servers are hand-configured system binaries.
@@ -113,6 +114,14 @@ Width adjustments persist when toggling the tree during the current Neovim
 session. `Space e`, `Space .`, and `Space g` keep their existing pickers.
 An open sidebar follows worktree switches, while focus returns to the
 target workspace's editing window.
+
+## Git
+
+Tim Pope's [Fugitive](https://github.com/tpope/vim-fugitive) provides `:Git`
+(or `:G`) for interactive status, staging, and commits. In its status buffer,
+press `g?` for available actions. Use `:Git blame` for the current file's
+history, `:Gdiffsplit` to compare with the index, and `:help fugitive` for
+the full command reference.
 
 ## Utility commands
 

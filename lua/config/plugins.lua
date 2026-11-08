@@ -15,6 +15,8 @@ M.specs = {
   { src = 'https://github.com/nvim-treesitter/nvim-treesitter-context' },
   { src = 'https://github.com/tpope/vim-surround' },
   { src = 'https://github.com/tpope/vim-repeat' },
+  -- interactive Git status, staging, commits, and repository buffers
+  { src = 'https://github.com/tpope/vim-fugitive' },
   -- Modules used: mini.clue (infobox), mini.pairs, mini.diff, mini.ai,
   -- mini.indentscope, mini.test. Nothing else.
   { src = 'https://github.com/nvim-mini/mini.nvim' },

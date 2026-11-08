@@ -11,7 +11,7 @@ local T = MiniTest.new_set({
 
 local eq = MiniTest.expect.equality
 
-T['exactly the twelve agreed plugins are active'] = function()
+T['exactly the configured plugins are active'] = function()
   local names = child.lua_get([[(function()
     local out = {}
     for _, p in ipairs(vim.pack.get()) do
@@ -24,7 +24,7 @@ T['exactly the twelve agreed plugins are active'] = function()
     'Oshen.nvim', 'flash.nvim', 'fzf-lua', 'melange-nvim', 'mini.nvim',
     'nvim-tree.lua',
     'nvim-treesitter', 'nvim-treesitter-context',
-    'nvim-treesitter-textobjects', 'rose-pine', 'vim-repeat', 'vim-surround',
+    'nvim-treesitter-textobjects', 'rose-pine', 'vim-fugitive', 'vim-repeat', 'vim-surround',
   })
 end
 
