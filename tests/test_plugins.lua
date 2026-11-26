@@ -281,6 +281,42 @@ T['fzf-lua pickers lead with the path tail (filename_first)'] = function()
   })
 end
 
+T['ctrl-d/ctrl-u scroll the picker preview by half a page'] = function()
+  local km = child.lua_get([[(function()
+    local km = require('fzf-lua.config').normalize_opts({}, 'files').keymap
+    return {
+      b_down = km.builtin['<c-d>'], b_up = km.builtin['<c-u>'],
+      f_down = km.fzf['ctrl-d'], f_up = km.fzf['ctrl-u'],
+    }
+  end)()]])
+  eq(km, {
+    b_down = 'preview-half-page-down',
+    b_up = 'preview-half-page-up',
+    f_down = 'preview-half-page-down',
+    f_up = 'preview-half-page-up',
+  })
+end
+
+T['the preview scroll binds keep the fzf-lua defaults'] = function()
+  -- `true` in the bind tables merges with the defaults instead of replacing;
+  -- fzf-lua lowercases builtin key names when it normalizes them
+  local km = child.lua_get([[(function()
+    local km = require('fzf-lua.config').normalize_opts({}, 'files').keymap
+    return {
+      help = km.builtin['<f1>'], page = km.builtin['<s-down>'],
+      abort = km.fzf['ctrl-z'], first = km.fzf['alt-g'],
+      inherit_flag = km.builtin[1] == nil and km.fzf[1] == nil,
+    }
+  end)()]])
+  eq(km, {
+    help = 'toggle-help',
+    page = 'preview-page-down',
+    abort = 'abort',
+    first = 'first',
+    inherit_flag = true,
+  })
+end
+
 T['the path tail is rendered ahead of its parent'] = function()
   -- behavioral: the formatter must actually reorder so the long parent
   -- prefix (not the leaf) is what overflows and truncates

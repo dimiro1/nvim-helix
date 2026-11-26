@@ -66,7 +66,27 @@ function M.setup()
   -- Lead every path entry with its tail (file name, or leaf directory for
   -- zoxide) and trail the parent dimmed. Long lines then truncate the
   -- redundant parent prefix instead of the identifying tail.
-  require('fzf-lua').setup({ defaults = { formatter = 'path.filename_first' } })
+  --
+  -- <C-d>/<C-u> scroll the preview by half a page, as they scroll a window
+  -- in Vim; `true` keeps fzf-lua's default binds alongside. Both tables are
+  -- needed: `builtin` drives the Neovim-window previewer, `fzf` the native
+  -- one (bat/git/…). This shadows fzf's ctrl-u clear-query; ctrl-w and
+  -- alt-backspace still delete backwards.
+  require('fzf-lua').setup({
+    defaults = { formatter = 'path.filename_first' },
+    keymap = {
+      builtin = {
+        true,
+        ['<C-d>'] = 'preview-half-page-down',
+        ['<C-u>'] = 'preview-half-page-up',
+      },
+      fzf = {
+        true,
+        ['ctrl-d'] = 'preview-half-page-down',
+        ['ctrl-u'] = 'preview-half-page-up',
+      },
+    },
+  })
   -- vim.ui.select prompts (code actions, …) go through the picker surface
   require('fzf-lua').register_ui_select()
 
