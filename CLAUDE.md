@@ -33,8 +33,13 @@ plugins or shadow Vim grammar keys need to clear those bars, not just work.
 - `lua/config/{options,plugins,anysphere,lsp,keymaps,pickers,explorer,tree,zoxide,everything,commands,worktrees,permalink,processes,statusline,tabline,breadcrumbs,terminal,termbg}.lua`
 - `colors/anysphere.lua` — native `:colorscheme anysphere` entry point
 - `tests/test_*.lua` — one file per module plus behavioral textobject tests
-- The target look mirrors the user's personal Helix `config.toml` (see
-  README "Personalization layer"), not stock Helix defaults.
+- The target look mirrors the user's personal Helix `config.toml`, not
+  stock Helix defaults: relative line numbers, soft wrap, bordered popups,
+  a `┊` active-scope indent guide, `▍`/`▔` diff gutter signs, end-of-line
+  diagnostics expanded on the cursor line, a colored mode badge, a
+  centered file name, and a bufferline only with 2+ buffers.
+- The README is for humans: describe what the user sees and presses, not
+  module names or mechanics. Design rationale belongs in `docs/adr/`.
 
 ## External tools assumed on PATH
 

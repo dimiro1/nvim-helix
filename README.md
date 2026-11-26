@@ -1,170 +1,269 @@
 # Helix-flavored Neovim
 
-A Neovim 0.12 configuration that recreates [Helix](https://helix-editor.com)'s
-interaction layer — pickers, window management, search, LSP ergonomics — on
-stock Neovim, while keeping Vim's editing grammar untouched.
+A Neovim 0.12 setup for people who like how [Helix](https://helix-editor.com)
+*feels*: pickers for everything, a Space menu that tells you what's next,
+LSP actions one keystroke away. It keeps Vim's editing language — motions,
+operators, text objects, registers — exactly as you know it.
 
-Two laws decide everything here (see `CONTEXT.md` and `docs/adr/`):
+The rule of thumb: if it's about **finding, navigating, or acting on code**,
+it works like Helix. If it's about **editing text**, it's plain Vim. When in
+doubt, press `Space` and read the menu.
 
-1. **Fidelity Rule** — Helix owns Space mode and LSP gotos; Vim owns the
-   grammar (motions, operators, text objects, marks, registers, search).
-2. **Native-first** — a plugin must provide something Neovim structurally
-   lacks. Plugins supply pickers (fzf-lua), a Git-filterable project tree
-   (nvim-tree), interactive Git operations (vim-fugitive), tree-sitter
-   features, surrounds, incremental label jumps
-   (flash.nvim), small editing/UI modules (mini.nvim), and colorschemes.
-   Plugin management is native `vim.pack`; completion is the native
-   `'autocomplete'` option; LSP servers are hand-configured system binaries.
+It also leans on what Neovim already ships. Completion, plugin management,
+and LSP are all built in; plugins are only here for things Neovim can't do
+on its own.
 
-## Requirements
+## Getting started
 
-| Binary | Why | Install |
-|---|---|---|
-| `nvim` ≥ 0.12.2 | `vim.pack`, `'autocomplete'`, `vim.lsp.config` | `brew install neovim` |
-| `fzf` | picker matching engine | `brew install fzf` |
-| `rg` | file listing + global search | `brew install ripgrep` |
-| `tree-sitter` | parser builds (CLI, build-time only) | `brew install tree-sitter-cli` |
-| `gopls` | Go LSP | `go install golang.org/x/tools/gopls@latest` |
-| `typescript-language-server` | JS/TS LSP | `npm i -g typescript-language-server` |
-| `pyright` | Python LSP | `npm i -g pyright` |
-| `jdtls` | Java LSP (Eclipse JDT.LS launcher) | `brew install jdtls` |
-| `lua-language-server` | Lua LSP (this config itself) | `brew install lua-language-server` |
-| `zoxide` (optional) | recent-dirs picker, `:Z` | `brew install zoxide` |
-| `lsof` | `:KillPort` process lookup | preinstalled on macOS/Linux |
+You need Neovim 0.12.2 or newer, plus a few command-line tools:
 
-## Install
+```sh
+brew install neovim fzf ripgrep tree-sitter-cli
+```
+
+Then clone and launch:
 
 ```sh
 git clone <this repo> ~/.config/nvim
-nvim   # first launch: vim.pack installs plugins, parsers compile in background
+nvim
 ```
 
-The vim.pack lockfile (`nvim-pack-lock.json`) is committed; update plugins
-with `:lua vim.pack.update()`, review the diff, `:write` to confirm.
+The first launch installs plugins and compiles syntax parsers in the
+background. Give it a minute before judging the highlighting.
 
-## Keymap (the Helix parts)
+### Language servers
 
-| Key | Action |
+Install the ones for the languages you use. Each is picked up automatically
+when it's on your `PATH`:
+
+| Language | Install |
 |---|---|
-| `Space Space` | everything picker — files, buffers, document symbols, and commands in one list, matched by name |
-| `Space f` / `Space F` | file picker (workspace root / cwd, dotfiles shown) |
-| `Space b` `Space j` `Space g` | buffer / jumplist / changed-file pickers |
-| `Space s` / `Space S` | document / workspace symbol picker |
-| `Space d` / `Space D` | buffer / workspace diagnostics picker |
-| `Space /` | global search (live grep) |
-| `Space ?` | command palette — preview shows the command's `:help` entry, else its description |
-| `Space '` | resume last picker |
-| `Space e` | directory search across the whole workspace → explorer at the pick |
-| `Space E` | toggle project tree at the workspace root, revealing the current file |
-| `Space .` | file explorer at the buffer's directory (level-by-level, `../` to go up) |
-| `Space z` / `:Z [query]` | recent directories via zoxide (Enter = cd, `Ctrl-f` = cd + file picker); every `:cd` feeds the zoxide db |
-| `Space W` / `:Worktrees` | switch git worktree, swapping workspaces — buffers/layout saved per worktree, restored on return; blocked while unsaved buffers exist; first visit opens the file picker |
-| `Space k` `Space r` `Space a` | hover / rename / code action |
-| `Space y` `Space p` … | system clipboard yank/paste family |
-| `Space c` | toggle comment |
-| `Space w` | window mode (alias of `Ctrl-w`) |
-| `gd` `gy` `gi` `gr` | goto definition / type-def / implementation / references |
-| `gw` | word jump labels (colemak alphabet, shadows Vim's `gw` — use `gq` to format) |
-| `]f` `[f` `]t` `[t` `]a` `[a` | next/prev function, type, argument |
-| `]g` `[g` | next/prev git change |
-| `if`/`af` `ic`/`ac` `ia`/`aa` | function / type / argument text objects |
-| `iq`/`aq` `im`/`am` | quotes (any of `"` `'` `` ` ``) / closest surrounding pair text objects (mini.ai; stock `i(`, `ib`, … untouched) |
-| `ys` `cs` `ds` | surround (tpope) |
-| `Space G` | toggle inline git diff overlay (mini.diff) |
-| `Space l` / `Space L` / `:Permalink [open]` | copy / browse a git permalink — commit-pinned URL to the current file and line (range in visual mode) on GitHub/GitLab/Codeberg; warns when uncommitted changes make it stale |
-| `Ctrl-\` | toggle floating terminal (`Esc Esc` leaves terminal mode) |
+| Go | `go install golang.org/x/tools/gopls@latest` |
+| TypeScript / JavaScript | `npm i -g typescript-language-server` |
+| Python | `uv tool install pyright` |
+| Java | `brew install jdtls` |
+| Lua | `brew install lua-language-server` |
 
-Everything else is stock Vim. Pressing `Space`, `g`, `z`, `Ctrl-w`, `[`, `]`
-pops a Helix-style infobox (mini.clue) listing the continuations.
+### Optional extras
 
-At the native `:` command line, completion opens as you type. `Ctrl-n` and
-`Ctrl-p` move through matches; Up and Down recall command history regardless
-of the typed prefix; `Ctrl-k` deletes from the cursor to the end. `q:` opens
-the editable command history, and `:history` lists it.
+| Tool | What it unlocks | Install |
+|---|---|---|
+| `zoxide` | jump to recently visited directories (`Space z`) | `brew install zoxide` |
+| `claude` | Claude Code inside the editor (`:ClaudeCode`) | `brew install --cask claude-code` |
+| `lsof` | `:KillPort` | already on macOS and most Linux systems |
 
-## Project tree
+### Updating plugins
 
-`Space E` opens a persistent sidebar at the current file's workspace root.
-Inside the tree:
+Run `:lua vim.pack.update()`, look over what changed, and `:write` to
+accept. Plugin versions are pinned in `nvim-pack-lock.json`, so every
+machine gets the same ones.
 
-| Key | Action |
+## Finding things
+
+Everything starts from `Space`. Press it and wait — a menu shows what each
+next key does. The same help appears after `g`, `z`, `[`, `]`, and `Ctrl-w`.
+
+| Key | Opens |
 |---|---|
-| `Enter` / `o` | open file or expand/collapse directory |
-| `C` | toggle changed files only (staged, unstaged, and untracked) |
-| `/` | filter filenames with a Vim regular expression; `Enter` keeps the filter |
-| `F` | clear the filename filter, keeping the Git filter |
-| `>` / `<` | widen / narrow by 5 columns; counts work, e.g. `2>` adds 10 |
-| `E` / `W` | expand / collapse all directories |
-| `g?` | show all tree keybindings |
+| `Space Space` | **everything** — files, open buffers, symbols, and commands in one list |
+| `Space f` | files in the project (`Space F`: from the current directory, dotfiles included) |
+| `Space /` | search file contents across the project |
+| `Space b` | open buffers |
+| `Space s` / `Space S` | symbols in this file / the whole project |
+| `Space d` / `Space D` | diagnostics in this file / the whole project |
+| `Space g` | files with uncommitted changes |
+| `Space j` | jump list |
+| `Space ?` | all commands, with their help shown alongside |
+| `Space '` | reopen the last picker where you left it |
 
-`/` expands nested directories before filtering, subject to nvim-tree's
-300-folder discovery limit. Dotfiles are visible; Git metadata and ignored
-files are hidden. The changed-only view follows working-tree Git status;
-committed branch changes are outside its scope.
+Inside any picker:
 
-Width commands work even while an editing window is focused:
+| Key | Does |
+|---|---|
+| `Enter` | open |
+| `Ctrl-s` / `Ctrl-v` / `Ctrl-t` | open in a horizontal split / vertical split / new tab |
+| `Ctrl-d` / `Ctrl-u` | scroll the preview down / up |
+| `F1` | list every picker key |
 
-```vim
-:NvimTreeResize +5
-:NvimTreeResize -5
-:NvimTreeResize 40
-```
+`Ctrl-u` scrolls the preview rather than clearing what you typed; use
+`Ctrl-w` to delete backwards a word at a time.
 
-Width adjustments persist when toggling the tree during the current Neovim
-session. `Space e`, `Space .`, and `Space g` keep their existing pickers.
-An open sidebar follows worktree switches, while focus returns to the
-target workspace's editing window.
+## Working with code
+
+| Key | Does |
+|---|---|
+| `gd` `gy` `gi` `gr` | go to definition / type / implementation / references |
+| `Space k` | show documentation for the symbol under the cursor |
+| `Space r` | rename it everywhere |
+| `Space a` | code actions (quick fixes, imports, refactors) |
+| `]f` `[f` · `]t` `[t` · `]a` `[a` | next / previous function · type · argument |
+| `]g` `[g` | next / previous git change |
+| `gw` | label every word on screen and jump to one by typing its label |
+| `Space c` | comment / uncomment |
+| `Space y` / `Space p` | yank to / paste from the system clipboard |
+
+Text objects work with any operator (`d`, `c`, `y`, `v`, …):
+
+| Object | Selects |
+|---|---|
+| `if` / `af` | inside / around a function |
+| `ic` / `ac` | inside / around a type (class, struct, interface) |
+| `ia` / `aa` | an argument |
+| `iq` / `aq` | inside / around the nearest quotes, whichever kind |
+| `im` / `am` | inside / around the nearest brackets or quotes |
+
+`ys`, `cs`, and `ds` add, change, and delete surrounding pairs.
+
+A few things happen on their own. Resting the cursor on a symbol highlights
+its other uses. When you scroll past the top of a long function, its
+signature sticks to the top of the window. Completion pops up as you type —
+`Ctrl-n` / `Ctrl-p` to move, `Ctrl-y` to accept.
+
+> `gw` replaces Vim's "format without moving the cursor". Use `gq` to format.
+
+## Moving around the project
+
+| Key | Does |
+|---|---|
+| `Space E` | toggle the project tree, opened at the current file |
+| `Space .` | browse the current file's folder, one level at a time |
+| `Space e` | search every folder in the project, then browse from the one you pick |
+| `Space z` | recently visited directories — `Enter` to switch, `Ctrl-f` to switch and pick a file |
+| `Space W` | switch git worktree (see below) |
+
+### The project tree
+
+Hidden files show; ignored files and `.git` don't.
+
+| Key (in the tree) | Does |
+|---|---|
+| `Enter` / `o` | open a file, or expand a folder |
+| `C` | show only changed files (staged, unstaged, and new) |
+| `/` | filter by name; `F` clears the filter |
+| `>` / `<` | make the tree wider / narrower (`2>` for double) |
+| `E` / `W` | expand / collapse everything |
+| `g?` | every tree key |
+
+The tree keeps its width while you toggle it, and follows you when you
+switch worktrees.
+
+### Worktrees
+
+`Space W` lists the git worktrees of the current repository. Switching saves
+your open files and window layout for the worktree you're leaving and
+restores the ones for the worktree you're entering — like separate editor
+windows, one per branch. The first visit to a worktree opens the file picker.
+Save your changes first; switching is blocked while buffers are unsaved.
+
+## The command line
+
+Typing after `:` shows matching commands as you go — `Ctrl-n` / `Ctrl-p` to
+move through them. Up and Down walk your command history whatever you've
+typed so far, and `Ctrl-k` deletes to the end of the line. `q:` opens the
+history in an editable window.
+
+## Windows and the terminal
+
+`Space w` is the window menu, the same as `Ctrl-w`. `Ctrl-w <` and
+`Ctrl-w >` always move the divider left and right, whichever side of it
+you're on.
+
+`Ctrl-\` toggles a floating terminal. Press `Esc Esc` to get back to normal
+mode inside it.
 
 ## Git
 
-Tim Pope's [Fugitive](https://github.com/tpope/vim-fugitive) provides `:Git`
-(or `:G`) for interactive status, staging, and commits. In its status buffer,
-press `g?` for available actions. Use `:Git blame` for the current file's
-history, `:Gdiffsplit` to compare with the index, and `:help fugitive` for
-the full command reference.
+| | |
+|---|---|
+| `:Git` (or `:G`) | interactive status — stage, unstage, commit; `g?` lists the keys |
+| `:Git blame` | who changed each line |
+| `:Gdiffsplit` | compare the file against what's staged |
+| `Space G` | show changes inline in the current file |
+| `Space l` | copy a link to the current line on GitHub, GitLab, or Codeberg (select lines first for a range) |
+| `Space L` | open that link in the browser |
 
-## Utility commands
+Links point at the exact commit, so they keep working after the file
+changes. You'll get a warning if uncommitted edits mean the link won't
+match what you see.
 
-`:KillPort [port]` — kill the process listening on a TCP port. Prompts for
-the port when omitted, offers a picker when several processes listen, and
-confirms before sending SIGKILL. Only LISTEN-state sockets match, so a
-process merely connected to the port is never offered as a target.
+## Claude Code
 
-## Personalization layer
+Neovim talks to Claude Code the same way VS Code does: Claude sees the file
+you're in, your selection, and your diagnostics, and proposes edits as diffs
+you can review.
 
-Mirrors the user's actual Helix `config.toml`, not stock defaults: relative
-line numbers, soft wrap, bordered popups, a `┊` active-scope indent guide, end-of-line
-diagnostics with expanded cursor-line rendering, colored `❮N❯/❮I❯/❮V❯` mode
-segment with git branch and worktree name (`main (kelowna)`), centered
-filename, rich right-side statusline
-segments, and a bufferline that appears only with 2+ buffers (hand-rolled
-native `'tabline'`). Colorscheme: `anysphere`, a local port of
-`~/.emacs.d/themes/anysphere-theme.el`: charcoal background, italic grey
-comments, teal keywords, pink strings, peach declarations, gold calls and
-numbers, blue types, and lavender properties. It covers native completion,
-LSP tokens and diagnostics, pickers, the project tree, and inline diffs.
-Use `:colorscheme anysphere` to apply it to an existing session;
-`rose-pine`, `melange`, `oshen-night`, and `oshen-day` remain available.
-Palette attribution and license: [docs/anysphere-LICENSE](docs/anysphere-LICENSE).
-The scheme's background is reported to the terminal with OSC 11 (and
-reset with OSC 111 on exit/suspend), the same escape Helix emits — so
-Ghostty colors its tabs and titlebar to match the editor theme.
-The `┊` indent guide marks only the scope at the cursor (mini.indentscope),
-drawn instantly with no animation, rather than every indent level.
+- `:ClaudeCode` opens Claude in a split on the right (`--resume` or
+  `--continue` to pick up an earlier conversation).
+- `:'<,'>ClaudeCodeSend` sends the selected lines.
+- `:ClaudeCodeAdd %` adds the current file.
+- `:ClaudeCodeTreeAdd` adds the file under the cursor in the project tree.
 
-## Reading aids
+Already running `claude` in another terminal? Type `/ide` there to connect
+it. When Claude proposes an edit, `:w` accepts it and `:q` rejects it — and
+you can tweak the proposal before saving.
 
-Sticky scope headers while scrolling (nvim-treesitter-context, capped at 3
-lines), breadcrumbs in the statusline center — the enclosing scope chain
-after the file name (`file.go › Type › method`, hand-rolled treesitter
-walk) — and LSP document highlight: rest the cursor on a symbol and its
-other uses light up (`updatetime=250`).
+## Reading the screen
 
-## Development
+**The status bar** keeps the file name centered, with context on either
+side:
+
+```
+ NOR  main (kelowna) +3 ~1      lua/config/init.lua › M › setup      jdtls 45%  E:1 W:2  12:4  LF  lua
+```
+
+Reading left to right: the mode, the git branch (and worktree), lines
+changed but not yet staged, the file and the function you're in, a busy
+language server, problems, cursor position, line endings, and file type.
+
+- The **mode** badge changes color with the mode; the line:column at the
+  right matches it.
+- **Changes** count lines added (`+`), changed (`~`), and removed (`-`)
+  that aren't staged yet.
+- A **`[+]`** after the name means unsaved changes.
+- **Problems** in brackets, like `[E:3]`, are project-wide; the plain ones
+  are for this file.
+- While a language server is loading or indexing, its name and progress
+  show on the right.
+- Help pages, the terminal, the project tree, and other non-file windows get
+  a short label instead — `help › options`, `terminal › zsh`.
+
+**The buffer bar** at the top appears once you have two or more files open.
+Files with the same name show their folder too (`config/init.lua`,
+`nvim/init.lua`). With more files than fit, the bar scrolls to keep the
+current one visible, and `‹3` / `2›` count the ones off-screen. Tab pages,
+if you use them, are numbered on the right.
+
+**Diagnostics** appear at the end of the offending line. On the line under
+the cursor they expand in full below it.
+
+## Themes
+
+The default theme is **anysphere**: a charcoal background with teal
+keywords, pink strings, and blue types, ported from an Emacs theme of the
+same name ([license](docs/anysphere-LICENSE)). Also installed: `rose-pine`,
+`melange`, `oshen-night`, and `oshen-day` — switch with `:colorscheme`.
+
+On terminals that support it (Ghostty, for one), the window's tabs and title
+bar take on the editor's background color.
+
+## Utilities
+
+`:KillPort [port]` stops whatever is listening on a TCP port. It asks for the
+port if you leave it out, lets you pick when there are several processes,
+and asks before killing anything.
+
+## Hacking on this config
 
 ```sh
-make test       # mini.test suite, headless, isolated XDG_CONFIG_HOME
-make check      # lua_ls type-check of the whole repo (editor-equivalent settings)
-make run        # interactive session against this repo without ~/.config
-make bootstrap  # install plugins + block until parsers compile
+make run        # try this checkout without touching ~/.config/nvim
+make test       # run the test suite
+make check      # type-check the Lua
+make bootstrap  # install plugins and wait for parsers to compile
 ```
+
+Why things are the way they are — the choice of each plugin, the keybinding
+boundary between Helix and Vim — is written up in [`docs/adr/`](docs/adr/).
+
+---
+
+_Generated with Claude AI — please review before distribution._
