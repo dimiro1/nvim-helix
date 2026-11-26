@@ -39,6 +39,22 @@ local function pair_textobject(ai_type, id)
   end
 end
 
+-- Native <C-w>< / <C-w>> shrink / grow the current window, and growing
+-- pushes the right border unless the window is rightmost, where it pulls
+-- the left border instead. Treat the key as an arrow for the separator:
+-- in the rightmost window, invert so the border still follows the key.
+function M.width_resize_cmd(key, has_right_neighbor, count)
+  local grow = (key == '>') == has_right_neighbor
+  return ('vertical resize %s%d'):format(grow and '+' or '-', count)
+end
+
+local function resize_width(key)
+  return function()
+    local has_right = vim.fn.winnr('l') ~= vim.fn.winnr()
+    vim.cmd(M.width_resize_cmd(key, has_right, vim.v.count1))
+  end
+end
+
 -- { modes, lhs, rhs, desc, remap = bool, expr = bool }
 M.specs = {
   -- Space mode: pickers
@@ -123,6 +139,8 @@ M.specs = {
   { 't', '<Esc><Esc>', '<C-\\><C-n>', 'Leave terminal mode' },
   -- remap so mini.clue's <C-w> trigger shows the window infobox
   { 'n', '<Leader>w', '<C-w>', 'Window mode', remap = true },
+  { 'n', '<C-w><', resize_width('<'), 'Move vertical separator left' },
+  { 'n', '<C-w>>', resize_width('>'), 'Move vertical separator right' },
 
   -- Goto mode: LSP jumps
   { 'n', 'gd', pick('definitions'), 'Goto definition' },

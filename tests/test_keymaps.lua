@@ -98,6 +98,99 @@ T['space-w aliases window mode'] = function()
   eq(child.lua_get([[vim.fn.maparg('<Leader>w', 'n')]]), '<C-W>')
 end
 
+T['width resize command follows the key as a separator arrow'] = function()
+  local cmd = function(key, has_right, count)
+    return child.lua_get(
+      ([[require('config.keymaps').width_resize_cmd('%s', %s, %d)]]):format(key, tostring(has_right), count)
+    )
+  end
+  eq(cmd('>', true, 1), 'vertical resize +1')
+  eq(cmd('<', true, 1), 'vertical resize -1')
+  eq(cmd('>', false, 1), 'vertical resize -1')
+  eq(cmd('<', false, 1), 'vertical resize +1')
+  eq(cmd('<', false, 7), 'vertical resize +7')
+end
+
+T['width resize keys replace the native grow/shrink'] = function()
+  eq(child.lua_get([[vim.fn.maparg('<C-w><', 'n', false, true).desc]]), 'Move vertical separator left')
+  eq(child.lua_get([[vim.fn.maparg('<C-w>>', 'n', false, true).desc]]), 'Move vertical separator right')
+end
+
+local function split_side_by_side()
+  child.o.columns = 101
+  child.lua([[
+    vim.cmd('vsplit')
+    vim.cmd('1wincmd w')
+    vim.cmd('vertical resize 50')
+  ]])
+end
+
+local function left_width()
+  return child.lua_get([[vim.api.nvim_win_get_width(vim.fn.win_getid(1))]])
+end
+
+T['in the left window the separator follows the key'] = function()
+  split_side_by_side()
+  eq(child.lua_get([[vim.fn.winnr()]]), 1)
+  child.type_keys('<C-w>', '>')
+  eq(left_width(), 51)
+  child.type_keys('<C-w>', '<')
+  child.type_keys('<C-w>', '<')
+  eq(left_width(), 49)
+end
+
+T['in the rightmost window the separator still follows the key'] = function()
+  split_side_by_side()
+  child.cmd('wincmd l')
+  eq(child.lua_get([[vim.fn.winnr()]]), 2)
+  child.type_keys('<C-w>', '>')
+  eq(left_width(), 51)
+  child.type_keys('<C-w>', '<')
+  child.type_keys('<C-w>', '<')
+  eq(left_width(), 49)
+  eq(child.lua_get([[vim.fn.winnr()]]), 2)
+end
+
+T['in a middle window the right separator follows the key'] = function()
+  child.o.columns = 152
+  child.lua([[
+    vim.cmd('vsplit | vsplit')
+    vim.cmd('wincmd =')
+    vim.cmd('2wincmd w')
+  ]])
+  local right_edge = function()
+    return child.lua_get([[vim.fn.win_screenpos(0)[2] + vim.api.nvim_win_get_width(0)]])
+  end
+  local before = right_edge()
+  local left_before = left_width()
+  child.type_keys('<C-w>', '>')
+  eq(right_edge(), before + 1)
+  child.type_keys('<C-w>', '<')
+  eq(right_edge(), before)
+  eq(left_width(), left_before)
+end
+
+T['width resize honors a count'] = function()
+  split_side_by_side()
+  child.cmd('wincmd l')
+  child.type_keys('5', '<C-w>', '<')
+  eq(left_width(), 45)
+end
+
+T['width resize is a no-op without a vertical split'] = function()
+  local cols = child.lua_get([[vim.o.columns]])
+  child.type_keys('<C-w>', '<')
+  child.type_keys('<C-w>', '>')
+  eq(child.lua_get([[vim.api.nvim_win_get_width(0)]]), cols)
+end
+
+T['space-w resizes through the same separator-arrow mapping'] = function()
+  split_side_by_side()
+  child.cmd('wincmd l')
+  child.type_keys('<Space>', 'w', '<')
+  eq(left_width(), 49)
+end
+
 T['cmdline Ctrl-N and Ctrl-P select from the auto-opened menu'] = function()
   child.type_keys(':', 'ech')
   eq(child.lua_get([[vim.fn.wildmenumode()]]), 1)
