@@ -21,7 +21,7 @@ T['exactly the configured plugins are active'] = function()
     return out
   end)()]])
   eq(names, {
-    'Oshen.nvim', 'flash.nvim', 'fzf-lua', 'melange-nvim', 'mini.nvim',
+    'Oshen.nvim', 'claudecode.nvim', 'flash.nvim', 'fzf-lua', 'melange-nvim', 'mini.nvim',
     'nvim-tree.lua',
     'nvim-treesitter', 'nvim-treesitter-context',
     'nvim-treesitter-textobjects', 'rose-pine', 'vim-fugitive', 'vim-repeat', 'vim-surround',
@@ -88,6 +88,51 @@ T['mini.clue, mini.pairs, mini.diff, mini.ai, mini.indentscope are set up'] = fu
   eq(child.lua_get([[type(_G.MiniIndentscope)]]), 'table')
   -- jumping moved to flash.nvim, so mini.jump2d is deliberately not set up
   eq(child.lua_get([[_G.MiniJump2d == nil]]), true)
+end
+
+T['claudecode runs Claude in the native terminal, never snacks'] = function()
+  eq(child.lua_get([[require('claudecode').state.initialized]]), true)
+  eq(child.lua_get([[require('claudecode.terminal').defaults.provider]]), 'native')
+end
+
+T['claudecode commands are defined'] = function()
+  local commands = child.lua_get([[vim.tbl_keys(vim.api.nvim_get_commands({}))]])
+  for _, name in ipairs({
+    'ClaudeCode', 'ClaudeCodeFocus', 'ClaudeCodeSend', 'ClaudeCodeAdd',
+    'ClaudeCodeTreeAdd', 'ClaudeCodeDiffAccept', 'ClaudeCodeDiffDeny', 'ClaudeCodeStatus',
+  }) do
+    eq(vim.tbl_contains(commands, name), true, name)
+  end
+end
+
+T['claudecode is reached by commands only, no mappings'] = function()
+  local hits = child.lua_get([[(function()
+    local out = {}
+    for _, mode in ipairs({ 'n', 'x', 'o', 'i', 't' }) do
+      for _, m in ipairs(vim.api.nvim_get_keymap(mode)) do
+        if (m.rhs or ''):find('ClaudeCode') or (m.desc or ''):find('Claude') then
+          table.insert(out, mode .. ' ' .. m.lhs)
+        end
+      end
+    end
+    return out
+  end)()]])
+  eq(hits, {})
+end
+
+T['claudecode server starts at boot and advertises this Neovim to the CLI'] = function()
+  local lock = child.lua_get([[(function()
+    local cc = require('claudecode')
+    local dir = require('claudecode.lockfile').lock_dir
+    local path = dir .. '/' .. cc.state.port .. '.lock'
+    local data = vim.json.decode(table.concat(vim.fn.readfile(path), '\n'))
+    return { dir = dir, ide = data.ideName, pid = data.pid == vim.fn.getpid() }
+  end)()]])
+  eq(lock.ide, 'Neovim')
+  eq(lock.pid, true)
+  -- the Makefile points CLAUDE_CONFIG_DIR into .testenv, so test children
+  -- never write lock files into the real ~/.claude/ide
+  eq(vim.startswith(lock.dir, vim.fn.getcwd() .. '/.testenv/'), true, lock.dir)
 end
 
 T['flash.nvim is set up with the colemak labels and grammar modes off'] = function()

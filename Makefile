@@ -23,6 +23,10 @@ $(XDG)/config/nvim:
 bootstrap: $(XDG)/config/nvim
 	nvim --headless "+lua require('nvim-treesitter').install(require('config.plugins').parsers):wait(600000)" "+lua print('boot ok')" +qa
 
+# claudecode.nvim writes an IDE lock file per booted child; keep them out of
+# the real ~/.claude/ide, where a running claude CLI would offer them.
+# Test-only: `make run` keeps the real dir so /ide can find that session.
+test: export CLAUDE_CONFIG_DIR := $(XDG)/claude
 test: bootstrap
 	nvim --headless -c "lua require('mini.test').setup()" -c "lua MiniTest.run()"
 

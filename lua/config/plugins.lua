@@ -17,6 +17,9 @@ M.specs = {
   { src = 'https://github.com/tpope/vim-repeat' },
   -- interactive Git status, staging, commits, and repository buffers
   { src = 'https://github.com/tpope/vim-fugitive' },
+  -- Claude Code IDE integration: the WebSocket MCP server the claude CLI
+  -- connects to for selections, diagnostics, and diff proposals
+  { src = 'https://github.com/coder/claudecode.nvim' },
   -- Modules used: mini.clue (infobox), mini.pairs, mini.diff, mini.ai,
   -- mini.indentscope, mini.test. Nothing else.
   { src = 'https://github.com/nvim-mini/mini.nvim' },
@@ -131,6 +134,10 @@ function M.setup()
       goto_last = ']G',
     },
   })
+
+  -- Explicit 'native': 'auto' would switch to snacks.nvim if it ever
+  -- appeared on the runtimepath. Commands only, like Fugitive (ADR 0010).
+  require('claudecode').setup({ terminal = { provider = 'native' } })
 
   local clue = require('mini.clue')
   clue.setup({

@@ -8,6 +8,10 @@
       "rev": "0a5de4da015a175f416d6ef1eda84661623e0500",
       "src": "https://github.com/catppuccin/nvim"
     },
+    "claudecode.nvim": {
+      "rev": "8bcc7bb816750405b624b4a4e05f9ef367715d1e",
+      "src": "https://github.com/coder/claudecode.nvim"
+    },
     "flash.nvim": {
       "rev": "5f0f270fdc7c5b0c21d903ee85b9cb06f2ac636a",
       "src": "https://github.com/folke/flash.nvim"
