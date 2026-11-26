@@ -135,6 +135,41 @@ T['claudecode server starts at boot and advertises this Neovim to the CLI'] = fu
   eq(vim.startswith(lock.dir, vim.fn.getcwd() .. '/.testenv/'), true, lock.dir)
 end
 
+T['mini.diff draws Helix-style gutter signs, not tinted line numbers'] = function()
+  -- 'number' is on, which would otherwise flip mini.diff to number style
+  eq(child.lua_get([[vim.o.number]]), true)
+  eq(child.lua_get([[MiniDiff.config.view.style]]), 'sign')
+  eq(child.lua_get([[MiniDiff.config.view.signs]]), { add = '▍', change = '▍', delete = '▔' })
+end
+
+T['mini.diff places a gutter sign for each hunk type'] = function()
+  child.lua([[
+    local buf = vim.api.nvim_get_current_buf()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, { 'one', 'TWO', 'three', 'five', 'six' })
+    -- no file behind the buffer, so the git source would refuse to attach
+    vim.b[buf].minidiff_config = { source = MiniDiff.gen_source.none() }
+    MiniDiff.enable(buf)
+    MiniDiff.set_ref_text(buf, { 'one', 'two', 'three', 'four', 'five' })
+    vim.wait(2000, function()
+      return #(MiniDiff.get_buf_data(buf) or {}).hunks > 0
+    end)
+  ]])
+  local signs = child.lua_get([[(function()
+    local out = {}
+    local ns = vim.api.nvim_get_namespaces().MiniDiffViz
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(0, ns, 0, -1, { details = true })) do
+      table.insert(out, { m[2] + 1, m[4].sign_text, m[4].sign_hl_group })
+    end
+    table.sort(out, function(a, b) return a[1] < b[1] end)
+    return out
+  end)()]])
+  eq(signs, {
+    { 2, '▍ ', 'MiniDiffSignChange' },
+    { 3, '▔ ', 'MiniDiffSignDelete' },
+    { 5, '▍ ', 'MiniDiffSignAdd' },
+  })
+end
+
 T['flash.nvim is set up with the colemak labels and grammar modes off'] = function()
   eq(child.lua_get([[type(require('flash').jump)]]), 'function')
   -- colemak home row plus a few easy neighbours

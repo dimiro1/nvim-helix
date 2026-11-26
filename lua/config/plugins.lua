@@ -125,6 +125,13 @@ function M.setup()
   })
 
   require('mini.diff').setup({
+    -- Explicit 'sign': mini.diff defaults to tinting line numbers whenever
+    -- 'number' is on, which leaves the gutter empty. Glyphs are Helix's
+    -- diff gutter.
+    view = {
+      style = 'sign',
+      signs = { add = '▍', change = '▍', delete = '▔' },
+    },
     -- Helix unimpaired keys for changes; apply/reset/textobject keep
     -- mini.diff defaults (gh/gH/gh).
     mappings = {
