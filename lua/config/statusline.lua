@@ -1,12 +1,15 @@
 -- Hand-rolled statusline mirroring the user's layout:
--- left = mode + git branch, center = file name + modified/read-only flags,
--- right = search match count, workspace diagnostics, buffer diagnostics,
--- position, encoding, line ending, file type. The mode and position
+-- left = mode + git branch + diff summary, center = file name +
+-- modified/read-only flags, right = LSP progress, search match count,
+-- workspace diagnostics, buffer diagnostics, position, encoding, line
+-- ending, file type. The mode and position
 -- segments are colored badges whose fill is drawn from the active
 -- colorscheme. Encoding is shown only when it isn't utf-8; the metadata
 -- tail (line ending, encoding, file type) is shed as the window narrows.
--- build()/parse_head()/diag_segment()/encoding_label()/search_segment()
--- are pure for testability.
+-- Non-file windows (help, quickfix, terminal, the tree, fugitive, …) get a
+-- compact layout instead: mode badge plus a 'kind › detail' label.
+-- build() and the *_segment()/parse_head()/encoding_label() helpers are
+-- pure for testability.
 local M = {}
 
 M.mode_labels = {
@@ -47,6 +50,19 @@ M.mode_sources = {
   StatuslineModeTerm = 'Type',
 }
 
+-- Accent text on the bar (diagnostic counts, diff summary, the modified
+-- flag): each group takes its source's foreground over the StatusLine
+-- background, resolved live in setup() like the mode badges. Painted only
+-- on the active window, whose base group is StatusLine.
+M.accent_sources = {
+  StatuslineError = 'DiagnosticError',
+  StatuslineWarn = 'DiagnosticWarn',
+  StatuslineModified = 'DiagnosticWarn',
+  StatuslineDiffAdd = 'MiniDiffSignAdd',
+  StatuslineDiffChange = 'MiniDiffSignChange',
+  StatuslineDiffDelete = 'MiniDiffSignDelete',
+}
+
 -- The metadata tail drops parts whose key falls below the window width,
 -- narrowest-survivor last. Diagnostics, search count, and position never
 -- shed. Value = the minimum window columns to keep the part.
@@ -71,16 +87,62 @@ function M.ink(fill)
   return luma >= 128 and 0x000000 or 0xffffff
 end
 
+-- Wrap text in an accent group, returning to the bar's base afterwards;
+-- plain text when uncolored (inactive windows, unit tests).
+function M.tint(text, group, colored)
+  if not colored then
+    return text
+  end
+  return '%#' .. group .. '#' .. text .. '%#StatusLine#'
+end
+
 -- 'E:1 W:2' with zero-count parts omitted; '' when clean.
-function M.diag_segment(errors, warnings)
+function M.diag_segment(errors, warnings, colored)
   local parts = {}
   if (errors or 0) > 0 then
-    parts[#parts + 1] = ('E:%d'):format(errors)
+    parts[#parts + 1] = M.tint(('E:%d'):format(errors), 'StatuslineError', colored)
   end
   if (warnings or 0) > 0 then
-    parts[#parts + 1] = ('W:%d'):format(warnings)
+    parts[#parts + 1] = M.tint(('W:%d'):format(warnings), 'StatuslineWarn', colored)
   end
   return table.concat(parts, ' ')
+end
+
+-- mini.diff's buffer summary as '+3 ~1 -2', zero counts omitted; '' when
+-- the buffer is unchanged or has no reference text yet.
+function M.diff_segment(summary, colored)
+  if type(summary) ~= 'table' then
+    return ''
+  end
+  local parts = {}
+  for _, part in ipairs({
+    { 'add', '+', 'StatuslineDiffAdd' },
+    { 'change', '~', 'StatuslineDiffChange' },
+    { 'delete', '-', 'StatuslineDiffDelete' },
+  }) do
+    local n = summary[part[1]] or 0
+    if n > 0 then
+      parts[#parts + 1] = M.tint(part[2] .. n, part[3], colored)
+    end
+  end
+  return table.concat(parts, ' ')
+end
+
+-- In-flight LSP work as 'jdtls 45%' (or 'jdtls …' before the server
+-- reports a percentage), '+N' when more tokens are running; '' when idle.
+-- entries: array of { name, percentage }. The output is statusline text,
+-- so '%' is escaped.
+function M.progress_segment(entries)
+  if entries == nil or #entries == 0 then
+    return ''
+  end
+  local first = entries[1]
+  local amount = first.percentage and (first.percentage .. '%%') or '…'
+  local out = first.name:gsub('%%', '%%%%') .. ' ' .. amount
+  if #entries > 1 then
+    out = out .. ' +' .. (#entries - 1)
+  end
+  return out
 end
 
 -- File encoding to display, or nil when it's the unremarkable utf-8.
@@ -110,9 +172,9 @@ function M.parse_head(content)
 end
 
 -- Display columns a built segment occupies, ignoring %#hl# group escapes
--- (which take no screen space).
+-- (which take no screen space) and counting an escaped '%%' as one cell.
 function M.display_width(segment)
-  return vim.fn.strdisplaywidth((segment:gsub('%%#[^#]*#', '')))
+  return vim.fn.strdisplaywidth((segment:gsub('%%#[^#]*#', ''):gsub('%%%%', '%%')))
 end
 
 -- The center segment's file label. A nameless buffer is '[scratch]'.
@@ -176,9 +238,95 @@ function M.fit_path(path, budget)
   return table.concat(parts, '/')
 end
 
--- state: { mode_label, color, branch, worktree, file, dependency, modified,
---          readonly, crumbs, ws_errors, ws_warnings, errors, warnings, line,
---          col, encoding, line_ending, filetype, width }
+-- Compact layouts for windows that aren't editing a file: a filetype
+-- override wins, else the buftype rule; buffers with neither keep the full
+-- file layout. Each rule returns (kind, detail?) from the info gathered by
+-- special_info(); special_label() joins them as 'kind › detail'. Any
+-- other non-file buftype falls back to its filetype, so a new plugin's
+-- window is compact without being listed here.
+M.filetype_kinds = {
+  NvimTree = function(info)
+    return 'tree', vim.fs.basename(info.cwd or '')
+  end,
+  fugitive = function()
+    return 'git'
+  end,
+  fugitiveblame = function()
+    return 'blame'
+  end,
+  checkhealth = function()
+    return 'health'
+  end,
+}
+
+-- A terminal's title until the program sets one is its term:// name;
+-- reduce that to the command's basename (term://~//123:/bin/zsh -> zsh).
+function M.terminal_title(title, name)
+  local t = (title and title ~= '') and title or name or ''
+  if t:match('^term://') then
+    local cmd = t:match(':([^:]*)$') or ''
+    return vim.fs.basename((vim.split(cmd, ' ', { plain = true })[1]))
+  end
+  return t
+end
+
+M.buftype_kinds = {
+  help = function(info)
+    return 'help', vim.fn.fnamemodify(info.name, ':t:r')
+  end,
+  quickfix = function(info)
+    local list = info.list or {}
+    local detail = vim.trim(list.title or '')
+    if (list.size or 0) > 0 then
+      detail = detail .. (detail ~= '' and ' ' or '') .. ('[%d/%d]'):format(list.idx, list.size)
+    end
+    return list.loc and 'location' or 'quickfix', detail
+  end,
+  terminal = function(info)
+    return 'terminal', M.terminal_title(info.title, info.name)
+  end,
+}
+
+-- info: { buftype, filetype, name, cwd, title, list = { loc, title, idx,
+-- size } }. Returns the compact center label (statusline-escaped), or nil
+-- for a buffer that gets the full file layout.
+function M.special_label(info)
+  local rule = M.filetype_kinds[info.filetype] or M.buftype_kinds[info.buftype]
+  local kind, detail
+  if rule then
+    kind, detail = rule(info)
+  elseif info.buftype ~= '' then
+    kind = info.filetype ~= '' and info.filetype or M.file_label(info.name)
+  else
+    return nil
+  end
+  local label = (detail and detail ~= '') and (kind .. ' › ' .. detail) or kind
+  return (label:gsub('%%', '%%%%'))
+end
+
+-- Center a segment on the window midpoint: position it by hand from the
+-- segment widths instead of letting %= balance it in the leftover space
+-- (which drifts when left and right differ in size). Without a width, or
+-- when the segments are too wide to center without overlap, fall back to
+-- %= balancing, which degrades gracefully.
+function M.compose(left, center, right, width)
+  if width then
+    local lw = M.display_width(left)
+    local cw = M.display_width(center)
+    local rw = M.display_width(right)
+    local left_gap = math.floor((width - cw) / 2) - lw
+    local right_gap = width - lw - left_gap - cw - rw
+    if left_gap >= 1 and right_gap >= 1 then
+      return left .. (' '):rep(left_gap) .. center .. (' '):rep(right_gap) .. right
+    end
+  end
+  return left .. ' %=' .. center .. '%=' .. right
+end
+
+-- state: { mode_label, color, special, branch, worktree, diff, file, dependency,
+--          modified, readonly, crumbs, progress, search, ws_errors,
+--          ws_warnings, errors, warnings, line, col, encoding, line_ending,
+--          filetype, width }
 -- width (the window's columns) opts the center segment into true
 -- window-centering; without it the center balances in the leftover space.
 function M.build(s)
@@ -191,16 +339,24 @@ function M.build(s)
   else
     mode = label -- active but uncolored (unit tests); no badge to pad
   end
+  if s.special then
+    -- compact: mode badge and label only; file metadata means nothing here
+    return M.compose(' ' .. mode, s.special, ' ', s.width)
+  end
   local vcs = s.branch
   if vcs and s.worktree then
     vcs = vcs .. ' (' .. s.worktree .. ')'
+  end
+  local diff = vcs and M.diff_segment(s.diff, s.color) or ''
+  if diff ~= '' then
+    vcs = vcs .. ' ' .. diff
   end
   local left = ' ' .. mode .. (vcs and ('  ' .. vcs) or '')
 
   -- everything the center carries besides the path; measured so the path
   -- can be shortened around it rather than at its expense
   local extras = (s.dependency and (' (' .. s.dependency .. ')') or '')
-    .. (s.modified and ' [+]' or '')
+    .. (s.modified and (' ' .. M.tint('[+]', 'StatuslineModified', s.color)) or '')
     .. (s.readonly and ' [RO]' or '')
   if s.crumbs and s.crumbs ~= '' then
     -- separator matches config.breadcrumbs.separator
@@ -208,14 +364,17 @@ function M.build(s)
   end
 
   local segments = {}
+  if s.progress and s.progress ~= '' then
+    segments[#segments + 1] = s.progress
+  end
   if s.search and s.search ~= '' then
     segments[#segments + 1] = s.search
   end
-  local ws = M.diag_segment(s.ws_errors, s.ws_warnings)
+  local ws = M.diag_segment(s.ws_errors, s.ws_warnings, s.color)
   if ws ~= '' then
     segments[#segments + 1] = '[' .. ws .. ']'
   end
-  local buf = M.diag_segment(s.errors, s.warnings)
+  local buf = M.diag_segment(s.errors, s.warnings, s.color)
   if buf ~= '' then
     segments[#segments + 1] = buf
   end
@@ -255,23 +414,7 @@ function M.build(s)
   end
   local center = file .. extras
 
-  -- True-center the center segment on the window midpoint: position it
-  -- by hand from the segment widths instead of letting %= balance it in
-  -- the leftover space (which drifts when left and right differ in size).
-  if s.width then
-    local lw = M.display_width(left)
-    local cw = M.display_width(center)
-    local rw = M.display_width(right)
-    local left_gap = math.floor((s.width - cw) / 2) - lw
-    local right_gap = s.width - lw - left_gap - cw - rw
-    if left_gap >= 1 and right_gap >= 1 then
-      return left .. (' '):rep(left_gap) .. center .. (' '):rep(right_gap) .. right
-    end
-  end
-
-  -- No width, or the segments are too wide to center without overlap:
-  -- fall back to %= balancing, which degrades gracefully.
-  return left .. ' %=' .. center .. '%=' .. right
+  return M.compose(left, center, right, s.width)
 end
 
 local line_endings = { unix = 'LF', dos = 'CRLF', mac = 'CR' }
@@ -310,6 +453,74 @@ function M.search_count()
   return M.search_segment(r.current, r.total)
 end
 
+-- In-flight LSP progress, keyed 'client_id:token'; fed by the LspProgress
+-- event (0.12's vim.ui.progress_status() does not see LSP work).
+M.progress = {}
+
+function M.track_progress(data)
+  local params = data and data.params
+  local value = params and params.value
+  if type(value) ~= 'table' then
+    return
+  end
+  local key = ('%s:%s'):format(data.client_id, params.token)
+  if value.kind == 'end' then
+    M.progress[key] = nil
+    return
+  end
+  local client = vim.lsp.get_client_by_id(data.client_id)
+  local prev = M.progress[key]
+  M.progress[key] = {
+    name = client and client.name or 'lsp',
+    -- 'report' messages may omit the percentage; keep the last one seen
+    percentage = value.percentage or (prev and prev.percentage),
+  }
+end
+
+-- A detached client never sends 'end' for its open tokens.
+function M.forget_client(client_id)
+  local prefix = client_id .. ':'
+  for key in pairs(M.progress) do
+    if vim.startswith(key, prefix) then
+      M.progress[key] = nil
+    end
+  end
+end
+
+-- Progress entries in a stable order, so the shown one doesn't flicker.
+function M.progress_entries()
+  local keys = vim.tbl_keys(M.progress)
+  table.sort(keys)
+  return vim.tbl_map(function(key)
+    return M.progress[key]
+  end, keys)
+end
+
+-- What special_label() needs about a window's buffer; nil for a plain
+-- file buffer with no filetype override (the common case, kept cheap).
+function M.special_info(buf, win)
+  local buftype = vim.bo[buf].buftype
+  local filetype = vim.bo[buf].filetype
+  if buftype == '' and not M.filetype_kinds[filetype] then
+    return nil
+  end
+  local info = {
+    buftype = buftype,
+    filetype = filetype,
+    name = vim.api.nvim_buf_get_name(buf),
+    cwd = vim.fn.getcwd(win),
+  }
+  if buftype == 'quickfix' then
+    local loc = (vim.fn.getwininfo(win)[1] or {}).loclist == 1
+    local what = { title = 0, idx = 0, size = 0 }
+    local list = loc and vim.fn.getloclist(win, what) or vim.fn.getqflist(what)
+    info.list = { loc = loc, title = list.title, idx = list.idx, size = list.size }
+  elseif buftype == 'terminal' then
+    info.title = vim.b[buf].term_title
+  end
+  return info
+end
+
 -- Runs inside a %{%…%} block: current window is the one being drawn,
 -- g:actual_curwin is the focused one.
 function M.render()
@@ -322,11 +533,22 @@ function M.render()
   local pos = vim.api.nvim_win_get_cursor(win)
   -- a global statusline spans all columns; per-window spans the window
   local width = vim.o.laststatus == 3 and vim.o.columns or vim.api.nvim_win_get_width(win)
+  local mode_label = active and M.mode_labels[vim.api.nvim_get_mode().mode] or nil
+  local special = M.special_info(buf, win)
+  if special then
+    return M.build({
+      mode_label = mode_label,
+      color = active,
+      special = M.special_label(special),
+      width = width,
+    })
+  end
   return M.build({
-    mode_label = active and M.mode_labels[vim.api.nvim_get_mode().mode] or nil,
+    mode_label = mode_label,
     color = active,
     branch = active and vim.b[buf].config_branch or nil,
     worktree = active and vim.b[buf].config_worktree or nil,
+    diff = active and vim.b[buf].minidiff_summary or nil,
     file = M.file_label(name),
     dependency = M.dependency_hint(name),
     modified = vim.bo[buf].modified,
@@ -343,6 +565,7 @@ function M.render()
     line_ending = line_endings[vim.bo[buf].fileformat],
     filetype = vim.bo[buf].filetype,
     search = active and M.search_count() or nil,
+    progress = active and M.progress_segment(M.progress_entries()) or nil,
     width = width,
   })
 end
@@ -361,6 +584,15 @@ function M.setup()
         vim.api.nvim_set_hl(0, group, { link = 'StatusLine' })
       end
     end
+    local bar = vim.api.nvim_get_hl(0, { name = 'StatusLine', link = false }).bg
+    for group, source in pairs(M.accent_sources) do
+      local fg = vim.api.nvim_get_hl(0, { name = source, link = false }).fg
+      if fg then
+        vim.api.nvim_set_hl(0, group, { fg = fg, bg = bar })
+      else
+        vim.api.nvim_set_hl(0, group, { link = 'StatusLine' })
+      end
+    end
   end
   paint()
   vim.api.nvim_create_autocmd('ColorScheme', {
@@ -371,6 +603,14 @@ function M.setup()
   vim.api.nvim_create_autocmd({ 'BufEnter', 'FocusGained', 'DirChanged' }, {
     group = vim.api.nvim_create_augroup('config.statusline', {}),
     callback = function(args)
+      -- non-file buffers render compact, without a branch; their names
+      -- (help files, term://, fugitive://) would also resolve to the wrong
+      -- repo, e.g. the Homebrew checkout that ships Neovim's help
+      if vim.bo[args.buf].buftype ~= '' then
+        vim.b[args.buf].config_branch = nil
+        vim.b[args.buf].config_worktree = nil
+        return
+      end
       local name = vim.api.nvim_buf_get_name(args.buf)
       local dir = name ~= '' and vim.fs.dirname(name) or assert(vim.uv.cwd())
       local root = vim.fs.root(dir, '.git')
@@ -380,6 +620,30 @@ function M.setup()
     end,
   })
 
+  local redraw = vim.api.nvim_create_augroup('config.statusline.redraw', {})
+  vim.api.nvim_create_autocmd('LspProgress', {
+    group = redraw,
+    callback = function(args)
+      M.track_progress(args.data)
+      vim.cmd.redrawstatus()
+    end,
+  })
+  vim.api.nvim_create_autocmd('LspDetach', {
+    group = redraw,
+    callback = function(args)
+      M.forget_client(args.data.client_id)
+      vim.cmd.redrawstatus()
+    end,
+  })
+  -- mini.diff recomputes off the edit path; repaint when the summary lands
+  vim.api.nvim_create_autocmd('User', {
+    group = redraw,
+    pattern = 'MiniDiffUpdated',
+    command = 'redrawstatus',
+  })
+
+  -- the stock quickfix ftplugin sets its own window-local statusline
+  vim.g.qf_disable_statusline = 1
   vim.o.statusline = "%{%v:lua.require'config.statusline'.render()%}"
 end
 

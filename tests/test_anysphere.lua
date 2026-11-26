@@ -23,6 +23,8 @@ T['editor surfaces match the Emacs palette after a real boot'] = function()
       current_search = hl('CurSearch').bg,
       popup = hl('Pmenu').bg,
       line = hl('CursorLine').bg,
+      bar = hl('StatusLine').bg,
+      bar_inactive = hl('StatusLineNC').bg,
     }
   end)()]])
   eq(result, {
@@ -33,6 +35,9 @@ T['editor surfaces match the Emacs palette after a real boot'] = function()
     current_search = 0x163764,
     popup = 0x1d1d1d,
     line = 0x181818,
+    -- a faint band off the editor background marks stacked split edges
+    bar = 0x1d1d1d,
+    bar_inactive = 0x1d1d1d,
   })
 end
 

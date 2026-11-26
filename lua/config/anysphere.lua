@@ -46,7 +46,7 @@ function M.apply()
   vim.g.colors_name = 'anysphere'
 
   local groups = {
-    -- Flat editor, mode line, and tabs, as in the Emacs theme.
+    -- Flat editor and tabs, as in the Emacs theme.
     Normal = { fg = p.fg, bg = p.bg },
     NormalNC = { link = 'Normal' },
     NormalFloat = { fg = p.fg, bg = p.popup },
@@ -72,8 +72,10 @@ function M.apply()
     CursorLineSign = { link = 'SignColumn' },
     FoldColumn = { link = 'LineNr' },
     Folded = { fg = p.alt, bg = p.popup },
-    StatusLine = { fg = p.fg, bg = p.bg },
-    StatusLineNC = { fg = p.muted, bg = p.bg },
+    -- A faint band rather than flat: stacked splits need some edge, and the
+    -- bars are the only horizontal one.
+    StatusLine = { fg = p.fg, bg = p.popup },
+    StatusLineNC = { fg = p.muted, bg = p.popup },
     TabLine = { fg = p.alt, bg = p.bg },
     TabLineSel = { fg = p.fg, bg = p.bg, bold = true },
     TabLineFill = { bg = p.bg },

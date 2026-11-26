@@ -121,6 +121,66 @@ T['build']['separates workspace and buffer diagnostics'] = function()
   )
 end
 
+T['build']['colors diagnostic counts on the active window'] = function()
+  eq(
+    sl.build({
+      mode_label = 'NOR', file = 'a', line = 1, col = 1,
+      ws_errors = 3, errors = 1, warnings = 2,
+    }),
+    ' NOR %=a%=[E:3]  E:1 W:2  1:1 '
+  )
+  local out = sl.build({
+    mode_label = 'NOR', color = true, file = 'a', line = 1, col = 1,
+    ws_errors = 3, errors = 1, warnings = 2,
+  })
+  eq(out:find('[%#StatuslineError#E:3%#StatusLine#]', 1, true) ~= nil, true)
+  eq(
+    out:find('%#StatuslineError#E:1%#StatusLine# %#StatuslineWarn#W:2%#StatusLine#', 1, true)
+      ~= nil,
+    true
+  )
+end
+
+T['build']['colors the modified flag on the active window'] = function()
+  local out = sl.build({
+    mode_label = 'NOR', color = true, file = 'a', modified = true, line = 1, col = 1,
+  })
+  eq(out:find('a %#StatuslineModified#[+]%#StatusLine#', 1, true) ~= nil, true)
+end
+
+T['build']['shows the diff summary after the branch'] = function()
+  eq(
+    sl.build({
+      mode_label = 'NOR', branch = 'main', worktree = 'kelowna',
+      diff = { add = 3, change = 1, delete = 0 }, file = 'x', line = 1, col = 1,
+    }),
+    ' NOR  main (kelowna) +3 ~1 %=x%=1:1 '
+  )
+  -- a clean buffer adds nothing
+  eq(
+    sl.build({
+      mode_label = 'NOR', branch = 'main', diff = { add = 0, change = 0, delete = 0 },
+      file = 'x', line = 1, col = 1,
+    }),
+    ' NOR  main %=x%=1:1 '
+  )
+  -- outside a repo there is no branch to hang it on
+  eq(
+    sl.build({ mode_label = 'NOR', diff = { add = 2 }, file = 'x', line = 1, col = 1 }),
+    ' NOR %=x%=1:1 '
+  )
+end
+
+T['build']['leads the right side with LSP progress'] = function()
+  eq(
+    sl.build({
+      mode_label = 'NOR', file = 'x', line = 1, col = 1,
+      progress = 'jdtls 45%%', search = '[1/3]',
+    }),
+    ' NOR %=x%=jdtls 45%%  [1/3]  1:1 '
+  )
+end
+
 T['build']['blanks the mode for inactive windows'] = function()
   eq(sl.build({ file = 'x', line = 1, col = 1 }), '       %=x%=1:1 ')
 end
@@ -184,6 +244,122 @@ T['build']['sheds the metadata tail as the window narrows'] = function()
   local tiny = at(th.filetype - 1)
   eq(has(tiny, 'lua'), false)
   eq(has(tiny, '12:3'), true)
+end
+
+T['build']['renders a compact layout for special windows'] = function()
+  eq(
+    sl.build({
+      mode_label = 'NOR', special = 'help › options', branch = 'main',
+      file = 'ignored', errors = 1, line = 9, col = 9, filetype = 'help',
+    }),
+    ' NOR %=help › options%= '
+  )
+end
+
+T['build']['centers the compact label on the window'] = function()
+  -- left ' NOR' (4), center 'git' (3), right ' ' (1) in a width of 21:
+  -- center starts at floor((21-3)/2)=9, so 5 spaces left, 8 right
+  eq(
+    sl.build({ mode_label = 'NOR', special = 'git', width = 21 }),
+    ' NOR' .. string.rep(' ', 5) .. 'git' .. string.rep(' ', 8) .. ' '
+  )
+end
+
+T['special_label'] = MiniTest.new_set()
+
+T['special_label']['is nil for a plain file buffer'] = function()
+  eq(sl.special_label({ buftype = '', filetype = 'lua', name = '/x/a.lua' }), nil)
+end
+
+T['special_label']['names the help topic'] = function()
+  eq(
+    sl.special_label({ buftype = 'help', filetype = 'help', name = '/rt/doc/options.txt' }),
+    'help › options'
+  )
+end
+
+T['special_label']['titles a quickfix list with the cursor entry'] = function()
+  eq(
+    sl.special_label({
+      buftype = 'quickfix', filetype = 'qf', name = '',
+      list = { loc = false, title = ' :grep foo ', idx = 3, size = 12 },
+    }),
+    'quickfix › :grep foo [3/12]'
+  )
+end
+
+T['special_label']['distinguishes location lists and empty lists'] = function()
+  eq(
+    sl.special_label({
+      buftype = 'quickfix', filetype = 'qf', name = '',
+      list = { loc = true, title = '', idx = 0, size = 0 },
+    }),
+    'location'
+  )
+end
+
+T['special_label']['names the terminal program'] = function()
+  eq(
+    sl.special_label({
+      buftype = 'terminal', filetype = '', name = 'term://~/x//4242:/bin/zsh',
+    }),
+    'terminal › zsh'
+  )
+  -- a title set by the program wins over the term:// name
+  eq(
+    sl.special_label({
+      buftype = 'terminal', filetype = '', name = 'term://~//1:/bin/zsh', title = 'claude',
+    }),
+    'terminal › claude'
+  )
+end
+
+T['special_label']['lets a filetype override beat the buftype rule'] = function()
+  eq(
+    sl.special_label({
+      buftype = 'nofile', filetype = 'NvimTree', name = 'NvimTree_1', cwd = '/home/u/proj',
+    }),
+    'tree › proj'
+  )
+  eq(sl.special_label({ buftype = 'nowrite', filetype = 'fugitive', name = 'f' }), 'git')
+end
+
+T['special_label']['falls back to the filetype for unlisted non-file buffers'] = function()
+  eq(sl.special_label({ buftype = 'nofile', filetype = 'someplugin', name = 'x' }), 'someplugin')
+  -- no filetype either: the buffer's own name
+  eq(sl.special_label({ buftype = 'nofile', filetype = '', name = '' }), '[scratch]')
+end
+
+T['special_label']['escapes percent signs'] = function()
+  eq(
+    sl.special_label({
+      buftype = 'quickfix', filetype = 'qf', name = '',
+      list = { title = ':grep 100%', idx = 1, size = 1 },
+    }),
+    'quickfix › :grep 100%% [1/1]'
+  )
+end
+
+T['terminal_title'] = MiniTest.new_set()
+
+T['terminal_title']['reduces a term:// name to the command basename'] = function()
+  eq(sl.terminal_title(nil, 'term://~/proj//99:/opt/bin/lazygit --flag'), 'lazygit')
+  eq(sl.terminal_title('', 'term://~//1:zsh'), 'zsh')
+end
+
+T['terminal_title']['keeps a program-set title'] = function()
+  eq(sl.terminal_title('~/proj', 'term://~//1:/bin/zsh'), '~/proj')
+end
+
+T['special kinds'] = MiniTest.new_set()
+
+T['special kinds']['cover the windows this config opens'] = function()
+  for _, ft in ipairs({ 'NvimTree', 'fugitive', 'fugitiveblame', 'checkhealth' }) do
+    eq({ ft, type(sl.filetype_kinds[ft]) }, { ft, 'function' })
+  end
+  for _, bt in ipairs({ 'help', 'quickfix', 'terminal' }) do
+    eq({ bt, type(sl.buftype_kinds[bt]) }, { bt, 'function' })
+  end
 end
 
 T['file_label'] = MiniTest.new_set()
@@ -284,6 +460,10 @@ T['display_width']['ignores highlight-group escapes'] = function()
   eq(sl.display_width(' NOR  main'), 10)
 end
 
+T['display_width']['counts an escaped percent as one cell'] = function()
+  eq(sl.display_width('jdtls 45%%'), 9)
+end
+
 T['display_width']['counts multibyte glyphs by display cells'] = function()
   eq(sl.display_width('a › b'), 5)
 end
@@ -296,6 +476,77 @@ T['diag_segment']['omits zero counts'] = function()
   eq(sl.diag_segment(2, 0), 'E:2')
   eq(sl.diag_segment(nil, 3), 'W:3')
   eq(sl.diag_segment(1, 2), 'E:1 W:2')
+end
+
+T['diag_segment']['wraps each count in its severity group when colored'] = function()
+  eq(
+    sl.diag_segment(1, 2, true),
+    '%#StatuslineError#E:1%#StatusLine# %#StatuslineWarn#W:2%#StatusLine#'
+  )
+  eq(sl.diag_segment(0, 0, true), '')
+end
+
+T['tint'] = MiniTest.new_set()
+
+T['tint']['wraps text and returns to the bar base'] = function()
+  eq(sl.tint('x', 'G', true), '%#G#x%#StatusLine#')
+  eq(sl.tint('x', 'G', false), 'x')
+end
+
+T['diff_segment'] = MiniTest.new_set()
+
+T['diff_segment']['formats non-zero counts in add/change/delete order'] = function()
+  eq(sl.diff_segment({ add = 3, change = 1, delete = 2 }), '+3 ~1 -2')
+  eq(sl.diff_segment({ add = 0, change = 0, delete = 4 }), '-4')
+end
+
+T['diff_segment']['is empty without a summary or changes'] = function()
+  eq(sl.diff_segment(nil), '')
+  -- before the reference text arrives mini.diff sets only source_name
+  eq(sl.diff_segment({ source_name = 'git' }), '')
+end
+
+T['diff_segment']['colors each count like the gutter signs'] = function()
+  eq(
+    sl.diff_segment({ add = 1, change = 2, delete = 3 }, true),
+    '%#StatuslineDiffAdd#+1%#StatusLine# %#StatuslineDiffChange#~2%#StatusLine#'
+      .. ' %#StatuslineDiffDelete#-3%#StatusLine#'
+  )
+end
+
+T['progress_segment'] = MiniTest.new_set()
+
+T['progress_segment']['is empty when idle'] = function()
+  eq(sl.progress_segment({}), '')
+  eq(sl.progress_segment(nil), '')
+end
+
+T['progress_segment']['shows the client and an escaped percentage'] = function()
+  eq(sl.progress_segment({ { name = 'jdtls', percentage = 45 } }), 'jdtls 45%%')
+end
+
+T['progress_segment']['shows an ellipsis before a percentage arrives'] = function()
+  eq(sl.progress_segment({ { name = 'gopls' } }), 'gopls …')
+end
+
+T['progress_segment']['counts the other running tokens'] = function()
+  eq(
+    sl.progress_segment({
+      { name = 'jdtls', percentage = 10 }, { name = 'jdtls' }, { name = 'gopls' },
+    }),
+    'jdtls 10%% +2'
+  )
+end
+
+T['accent sources'] = MiniTest.new_set()
+
+T['accent sources']['every tinted group has a fill source'] = function()
+  for _, group in ipairs({
+    'StatuslineError', 'StatuslineWarn', 'StatuslineModified',
+    'StatuslineDiffAdd', 'StatuslineDiffChange', 'StatuslineDiffDelete',
+  }) do
+    eq(type(sl.accent_sources[group]), 'string')
+  end
 end
 
 T['encoding_label'] = MiniTest.new_set()
@@ -525,6 +776,92 @@ T['in a live instance']['shows the search match count while searching'] = functi
   ]])
   local rendered = child.lua_get([[require('config.statusline').render()]])
   eq(rendered:find('[1/3]', 1, true) ~= nil, true)
+end
+
+T['in a live instance']['accent groups take the source fg over the bar bg'] = function()
+  local r = child.lua_get([[(function()
+    local function get(name) return vim.api.nvim_get_hl(0, { name = name, link = false }) end
+    local out = {}
+    for group, source in pairs(require('config.statusline').accent_sources) do
+      out[group] = { got = get(group), fg = get(source).fg, bar = get('StatusLine').bg }
+    end
+    return out
+  end)()]])
+  for group, c in pairs(r) do
+    eq({ group, c.got.fg, c.got.bg }, { group, c.fg, c.bar })
+  end
+end
+
+T['in a live instance']['tracks LSP progress from begin to end'] = function()
+  child.lua([[vim.o.columns = 200 vim.cmd.edit('p.txt')]])
+  local function fire(value)
+    child.lua(([[vim.api.nvim_exec_autocmds('LspProgress', {
+      data = { client_id = 999, params = { token = 't', value = %s } },
+    })]]):format(value))
+    return child.lua_get([[require('config.statusline').render()]])
+  end
+  local began = fire([[{ kind = 'begin', title = 'Indexing' }]])
+  eq(began:find('lsp …', 1, true) ~= nil, true)
+  local reported = fire([[{ kind = 'report', percentage = 40 }]])
+  eq(reported:find('lsp 40%%', 1, true) ~= nil, true)
+  -- a report without a percentage keeps the last one
+  local kept = fire([[{ kind = 'report', message = 'still going' }]])
+  eq(kept:find('lsp 40%%', 1, true) ~= nil, true)
+  local ended = fire([[{ kind = 'end' }]])
+  eq(ended:find('lsp ', 1, true), nil)
+end
+
+T['in a live instance']['forgets the progress of a detached client'] = function()
+  child.lua([[
+    local sl = require('config.statusline')
+    sl.progress['7:a'] = { name = 'x' }
+    sl.progress['7:b'] = { name = 'x' }
+    sl.progress['8:a'] = { name = 'y' }
+    sl.forget_client(7)
+  ]])
+  eq(child.lua_get([[vim.tbl_keys(require('config.statusline').progress)]]), { '8:a' })
+end
+
+T['in a live instance']['shows the mini.diff summary next to the branch'] = function()
+  child.lua([[vim.o.columns = 200 vim.cmd.edit('demo.txt')]])
+  child.lua([[vim.b.minidiff_summary = { add = 2, change = 0, delete = 1 }]])
+  local rendered = child.lua_get([[require('config.statusline').render()]])
+  eq(rendered:find('%#StatuslineDiffAdd#+2%#StatusLine#', 1, true) ~= nil, true)
+  eq(rendered:find('%#StatuslineDiffDelete#-1%#StatusLine#', 1, true) ~= nil, true)
+end
+
+T['in a live instance']['help windows render compact, without a branch'] = function()
+  child.lua([[vim.o.columns = 200 vim.cmd.help('statusline')]])
+  local rendered = child.lua_get([[require('config.statusline').render()]])
+  eq(rendered:find('help › options', 1, true) ~= nil, true)
+  -- Neovim's help lives in some other checkout; its branch must not leak in
+  eq(child.lua_get([[vim.b.config_branch]]), vim.NIL)
+  eq(rendered:find('[RO]', 1, true), nil)
+end
+
+T['in a live instance']['quickfix uses this statusline, not the ftplugin one'] = function()
+  child.lua([[
+    vim.o.columns = 200
+    vim.fn.setqflist({}, ' ', {
+      title = 'demo list',
+      items = { { filename = 'a.txt', lnum = 1, text = 'x' }, { filename = 'b.txt', lnum = 1, text = 'y' } },
+    })
+    vim.cmd.copen()
+  ]])
+  eq(child.lua_get([[vim.g.qf_disable_statusline]]), 1)
+  eq(child.lua_get([[vim.api.nvim_get_option_value('statusline', { scope = 'local' })]]), '')
+  local rendered = child.lua_get([[require('config.statusline').render()]])
+  eq(rendered:find('quickfix › demo list [1/2]', 1, true) ~= nil, true)
+end
+
+T['in a live instance']['the project tree shows its root'] = function()
+  child.lua([[vim.o.columns = 200 require('nvim-tree.api').tree.open()]])
+  local r = child.lua_get([[{
+    line = require('config.statusline').render(),
+    root = vim.fs.basename(vim.fn.getcwd()),
+  }]])
+  eq(r.line:find('tree › ' .. r.root, 1, true) ~= nil, true)
+  eq(r.line:find('NvimTree_', 1, true), nil)
 end
 
 return T
