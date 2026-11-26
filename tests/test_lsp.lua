@@ -60,6 +60,79 @@ T['every server roots on project markers plus .git'] = function()
   eq(vim.tbl_contains(servers.lua_ls.filetypes, 'lua'), true)
 end
 
+T['venv_python finds an executable .venv interpreter under the root'] = function()
+  local result = child.lua_get([[(function()
+    local lsp = require('config.lsp')
+    local with_venv = vim.fn.tempname()
+    vim.fn.mkdir(with_venv .. '/.venv/bin', 'p')
+    local python = with_venv .. '/.venv/bin/python'
+    vim.fn.writefile({ '#!/bin/sh' }, python)
+    vim.fn.setfperm(python, 'rwxr-xr-x')
+    local not_executable = vim.fn.tempname()
+    vim.fn.mkdir(not_executable .. '/.venv/bin', 'p')
+    vim.fn.writefile({ '' }, not_executable .. '/.venv/bin/python')
+    local without_venv = vim.fn.tempname()
+    vim.fn.mkdir(without_venv, 'p')
+    return {
+      found = lsp.venv_python(with_venv) == python,
+      not_executable = lsp.venv_python(not_executable) == nil,
+      missing = lsp.venv_python(without_venv) == nil,
+      no_root = lsp.venv_python(nil) == nil,
+    }
+  end)()]])
+  eq(result, { found = true, not_executable = true, missing = true, no_root = true })
+end
+
+T['use_project_venv pushes the venv interpreter to the live client'] = function()
+  local result = child.lua_get([[(function()
+    local root = vim.fn.tempname()
+    vim.fn.mkdir(root .. '/.venv/bin', 'p')
+    local python = root .. '/.venv/bin/python'
+    vim.fn.writefile({ '#!/bin/sh' }, python)
+    vim.fn.setfperm(python, 'rwxr-xr-x')
+    local sent = {}
+    local client = {
+      root_dir = root,
+      settings = { python = { analysis = { typeCheckingMode = 'basic' } } },
+      notify = function(_, method, params) table.insert(sent, { method, params }) end,
+    }
+    require('config.lsp').use_project_venv(client)
+    return {
+      settings = client.settings,
+      sent = sent,
+      expected = python,
+    }
+  end)()]])
+  local expected_settings = {
+    python = { analysis = { typeCheckingMode = 'basic' }, pythonPath = result.expected },
+  }
+  eq(result.settings, expected_settings)
+  eq(result.sent, { { 'workspace/didChangeConfiguration', { settings = expected_settings } } })
+end
+
+T['use_project_venv leaves a client without a venv untouched'] = function()
+  local result = child.lua_get([[(function()
+    local root = vim.fn.tempname()
+    vim.fn.mkdir(root, 'p')
+    local sent = 0
+    local client = {
+      root_dir = root,
+      settings = {},
+      notify = function() sent = sent + 1 end,
+    }
+    require('config.lsp').use_project_venv(client)
+    return { settings = client.settings, sent = sent }
+  end)()]])
+  eq(result, { settings = {}, sent = 0 })
+end
+
+T['pyright points at the project venv on init'] = function()
+  eq(
+    child.lua_get([[vim.lsp.config['pyright'].on_init == require('config.lsp').use_project_venv]]),
+    true
+  )
+end
+
 T['jdtls roots on the gradle and maven build files'] = function()
   local markers = child.lua_get([[require('config.lsp').servers.jdtls.root_markers]])
   for _, marker in ipairs({ 'build.gradle', 'settings.gradle', 'pom.xml' }) do
@@ -216,6 +289,35 @@ T['gopls actually attaches to a go buffer'] = function()
     [[#vim.api.nvim_get_autocmds({ event = 'CursorHold', buffer = 0 })]]
   )
   eq(highlight_hooks > 0, true)
+end
+
+T['pyright attaches with the project venv as its interpreter'] = function()
+  if child.lua_get([[vim.fn.executable('pyright-langserver')]]) ~= 1 then
+    MiniTest.skip('pyright-langserver not on PATH')
+  end
+  local python = child.lua_get([[(function()
+    local root = vim.fn.resolve(vim.fn.tempname())
+    vim.fn.mkdir(root .. '/.venv/bin', 'p')
+    local python = root .. '/.venv/bin/python'
+    vim.fn.writefile({ '#!/bin/sh' }, python)
+    vim.fn.setfperm(python, 'rwxr-xr-x')
+    vim.fn.writefile({ '[project]', 'name = "demo"' }, root .. '/pyproject.toml')
+    vim.fn.writefile({ 'x = 1' }, root .. '/main.py')
+    vim.cmd.edit(root .. '/main.py')
+    return python
+  end)()]])
+  local configured = child.lua_get([[vim.wait(15000, function()
+    local client = vim.lsp.get_clients({ bufnr = 0, name = 'pyright' })[1]
+    return client ~= nil and client.initialized
+      and vim.tbl_get(client.settings, 'python', 'pythonPath') ~= nil
+  end, 100)]])
+  eq(configured, true)
+  eq(
+    child.lua_get(
+      [[vim.lsp.get_clients({ bufnr = 0, name = 'pyright' })[1].settings.python.pythonPath]]
+    ),
+    python
+  )
 end
 
 T['jdtls actually attaches to a java buffer'] = function()

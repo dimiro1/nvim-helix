@@ -57,6 +57,27 @@ M.servers = {
   },
 }
 
+-- pyright resolves imports against the first `python` on PATH, which is
+-- not the project's interpreter unless the shell had the venv activated.
+function M.venv_python(root)
+  if not root then
+    return nil
+  end
+  local python = vim.fs.joinpath(root, '.venv', 'bin', 'python')
+  return vim.fn.executable(python) == 1 and python or nil
+end
+
+function M.use_project_venv(client)
+  local python = M.venv_python(client.root_dir)
+  if not python then
+    return
+  end
+  client.settings = vim.tbl_deep_extend('force', client.settings, {
+    python = { pythonPath = python },
+  })
+  client:notify('workspace/didChangeConfiguration', { settings = client.settings })
+end
+
 -- Helix auto-formats on save when the server supports it. For Go that
 -- means gopls' organize-imports code action followed by formatting.
 function M.go_format(bufnr)
@@ -141,6 +162,9 @@ function M.setup()
   for name, cfg in pairs(M.servers) do
     vim.lsp.config(name, cfg)
   end
+  -- client.settings is copied from the config before before_init runs, so
+  -- the venv path has to be pushed to the live client once it is up
+  vim.lsp.config('pyright', { on_init = M.use_project_venv })
   vim.lsp.enable(vim.tbl_keys(M.servers))
 
   local group = vim.api.nvim_create_augroup('config.lsp', {})
