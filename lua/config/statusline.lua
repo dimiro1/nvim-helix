@@ -179,17 +179,23 @@ function M.display_width(segment)
   return vim.fn.strdisplaywidth((segment:gsub('%%#[^#]*#', ''):gsub('%%%%', '%%')))
 end
 
--- The center segment's file label. A nameless buffer is '[scratch]'.
--- jdtls class-file buffers carry a jdt:// URI with a `?=…` query and a
--- url-encoded path, so fnamemodify would mangle them — reduce those (and
--- any other scheme:// LSP URI) to the final class/file segment, matching
--- the tabline. Plain files keep their cwd/home-relative path.
-function M.file_label(name)
+-- A buffer name reduced to its final path segment. LSP URIs (jdtls class
+-- files: jdt://…/String.class?=…) carry a query string and a url-encoded
+-- path, so the query goes first and only the last segment is kept.
+function M.short_name(name)
   if name == '' then
     return '[scratch]'
   end
-  if name:match('^%a[%w+.-]*://') then
-    return (name:gsub('%?.*$', '')):match('[^/\\]+$') or name
+  local path = name:gsub('%?.*$', '')
+  return path:match('[^/\\]+$') or path
+end
+
+-- The center segment's file label. Nameless buffers and scheme:// LSP URIs
+-- (whose url-encoded paths fnamemodify would mangle) take short_name();
+-- plain files keep their cwd/home-relative path.
+function M.file_label(name)
+  if name == '' or name:match('^%a[%w+.-]*://') then
+    return M.short_name(name)
   end
   return vim.fn.fnamemodify(name, ':~:.')
 end

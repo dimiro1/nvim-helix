@@ -398,6 +398,37 @@ T['file_label']['reduces a jdtls class-file uri to the class name'] = function()
   )
 end
 
+T['file_label']['shortens nameless and uri buffers to their last segment'] = function()
+  for name, label in pairs({
+    [''] = '[scratch]',
+    ['jdt://contents/a.jar/p/Q.class?=x'] = 'Q.class',
+    ['fugitive://repo/.git//0/f.lua'] = 'f.lua',
+  }) do
+    eq(sl.file_label(name), label, name)
+  end
+end
+
+T['short_name'] = MiniTest.new_set()
+
+T['short_name']['takes the basename of a plain path'] = function()
+  eq(sl.short_name('/home/u/proj/two.txt'), 'two.txt')
+  eq(sl.short_name('C:\\proj\\two.txt'), 'two.txt')
+end
+
+T['short_name']['labels a nameless buffer as scratch'] = function()
+  eq(sl.short_name(''), '[scratch]')
+end
+
+T['short_name']['drops a uri query before taking the last segment'] = function()
+  -- the ?=… query itself contains slashes; taking the basename first
+  -- would return a fragment of the query
+  eq(sl.short_name('jdt://contents/java.base/java.lang/String.class?=demo/\\/modules'), 'String.class')
+  eq(
+    sl.short_name('jdt://contents/jackson-databind.jar/com.fasterxml.jackson.databind/ObjectMapper.class?=x'),
+    'ObjectMapper.class'
+  )
+end
+
 T['initial'] = MiniTest.new_set()
 
 T['initial']['takes the first letter of a component'] = function()

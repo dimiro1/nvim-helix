@@ -17,6 +17,10 @@ o.splitbelow = true
 -- '-- INSERT --' line on the command area is redundant.
 o.showmode = false
 
+-- No tab bar, not even for tab pages: buffers are switched from the
+-- picker (Space b) and the statusline already names the current file.
+o.showtabline = 0
+
 -- helix: popup-border = "all"
 o.winborder = 'single'
 

@@ -97,6 +97,13 @@ T['the built-in mode message is off (the statusline badge replaces it)'] = funct
   eq(child.lua_get([[vim.o.showmode]]), false)
 end
 
+T['the tab bar never shows, even with several buffers and tab pages'] = function()
+  eq(child.lua_get([[vim.o.showtabline]]), 0)
+  child.cmd('edit a.txt | edit b.txt | tabnew')
+  eq(child.lua_get([[vim.o.showtabline]]), 0)
+  eq(child.lua_get([[#vim.api.nvim_list_tabpages()]]), 2)
+end
+
 T['the built-in search count is off (the statusline renders it)'] = function()
   eq(child.lua_get([[vim.o.shortmess]]):find('S', 1, true) ~= nil, true)
 end

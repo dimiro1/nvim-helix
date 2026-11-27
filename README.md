@@ -227,11 +227,9 @@ language server, problems, cursor position, line endings, and file type.
 - Help pages, the terminal, the project tree, and other non-file windows get
   a short label instead — `help › options`, `terminal › zsh`.
 
-**The buffer bar** at the top appears once you have two or more files open.
-Files with the same name show their folder too (`config/init.lua`,
-`nvim/init.lua`). With more files than fit, the bar scrolls to keep the
-current one visible, and `‹3` / `2›` count the ones off-screen. Tab pages,
-if you use them, are numbered on the right.
+There is **no tab bar**. Switch files with `Space b`, which lists the
+open buffers, most recent first. Tab pages still work (`gt` cycles
+through them); there's just no bar showing them.
 
 **Diagnostics** appear at the end of the offending line. On the line under
 the cursor they expand in full below it.
