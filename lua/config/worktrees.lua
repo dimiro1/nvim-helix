@@ -45,6 +45,29 @@ function M.list(dir)
   return M.parse(lines)
 end
 
+-- The directory a buffer's file lives in; cwd for a nameless buffer.
+function M.buffer_dir(buf)
+  local name = vim.api.nvim_buf_get_name(buf or 0)
+  return name ~= '' and vim.fs.dirname(name) or assert(vim.uv.cwd())
+end
+
+-- The workspace the current buffer belongs to: VCS root of its file, else
+-- cwd. Pickers, the explorer, and the tree anchor here, so a buffer from
+-- another repository searches that repository.
+function M.workspace_root()
+  -- A tree buffer's name is synthetic. Its actual root still anchors
+  -- pickers when the sidebar is focused and cwd belongs somewhere else.
+  if vim.bo.filetype == 'NvimTree' then
+    local node = require('nvim-tree.api').tree.get_nodes()
+    if node then
+      return vim.fs.root(node.absolute_path, '.git') or node.absolute_path
+    end
+  end
+  return vim.fs.root(M.buffer_dir(), '.git') or assert(vim.uv.cwd())
+end
+
+-- The workspace cwd is in: what a switch saves and leaves. Differs from
+-- workspace_root() while the focused buffer belongs to another repository.
 function M.current_root()
   local cwd = assert(vim.uv.cwd())
   return vim.fs.root(cwd, '.git') or cwd

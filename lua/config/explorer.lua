@@ -80,7 +80,7 @@ M.DIRS_CMD = [[rg --files --hidden -g '!.git' | awk -F/ -v OFS=/ 'NF > 1 { NF--;
 -- Space-e: fuzzy search over every directory under the workspace root;
 -- Enter lands in the level explorer at the chosen directory.
 function M.directories()
-  local root = require('config.pickers').workspace_root()
+  local root = require('config.worktrees').workspace_root()
   fzf().fzf_exec(M.DIRS_CMD, {
     prompt = vim.fn.fnamemodify(root, ':~') .. '/**/',
     cwd = root,
@@ -94,13 +94,8 @@ function M.directories()
   })
 end
 
-function M.explorer_root()
-  M.explorer(require('config.pickers').workspace_root())
-end
-
 function M.explorer_buffer_dir()
-  local name = vim.api.nvim_buf_get_name(0)
-  M.explorer(name ~= '' and vim.fs.dirname(name) or assert(vim.uv.cwd()))
+  M.explorer(require('config.worktrees').buffer_dir())
 end
 
 return M

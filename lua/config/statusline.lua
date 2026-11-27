@@ -611,8 +611,7 @@ function M.setup()
         vim.b[args.buf].config_worktree = nil
         return
       end
-      local name = vim.api.nvim_buf_get_name(args.buf)
-      local dir = name ~= '' and vim.fs.dirname(name) or assert(vim.uv.cwd())
+      local dir = require('config.worktrees').buffer_dir(args.buf)
       local root = vim.fs.root(dir, '.git')
       vim.b[args.buf].config_branch = M.detect_branch(dir)
       -- which worktree this buffer lives in, shown beside the branch

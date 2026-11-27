@@ -8,20 +8,8 @@ local function fzf()
   return require('fzf-lua')
 end
 
--- Workspace root: VCS root of the current buffer, else cwd. The shared anchor
--- the file pickers and the explorer/everything modules root themselves at.
-function M.workspace_root()
-  -- A tree buffer's name is synthetic. Its actual root still anchors
-  -- pickers when the sidebar is focused and cwd belongs somewhere else.
-  if vim.bo.filetype == 'NvimTree' then
-    local node = require('nvim-tree.api').tree.get_nodes()
-    if node then
-      return vim.fs.root(node.absolute_path, '.git') or node.absolute_path
-    end
-  end
-  local name = vim.api.nvim_buf_get_name(0)
-  local dir = name ~= '' and vim.fs.dirname(name) or assert(vim.uv.cwd())
-  return vim.fs.root(dir, '.git') or assert(vim.uv.cwd())
+local function root()
+  return require('config.worktrees').workspace_root()
 end
 
 -- Prompt labels: every name-driven picker announces itself with a `Name> `
@@ -53,16 +41,16 @@ M.PROMPTS = {
 
 -- Space mode pickers; hidden = true shows dotfiles while .gitignore is still
 -- respected.
-function M.files() fzf().files({ cwd = M.workspace_root(), hidden = true, prompt = M.PROMPTS.files }) end
+function M.files() fzf().files({ cwd = root(), hidden = true, prompt = M.PROMPTS.files }) end
 function M.files_cwd() fzf().files({ cwd = vim.uv.cwd(), hidden = true, prompt = M.PROMPTS.files_cwd }) end
 function M.buffers() fzf().buffers({ prompt = M.PROMPTS.buffers }) end
 function M.jumps() fzf().jumps({ prompt = M.PROMPTS.jumps }) end
-function M.changed_files() fzf().git_status({ cwd = M.workspace_root(), prompt = M.PROMPTS.changed_files }) end
+function M.changed_files() fzf().git_status({ cwd = root(), prompt = M.PROMPTS.changed_files }) end
 function M.document_symbols() fzf().lsp_document_symbols({ prompt = M.PROMPTS.document_symbols }) end
 function M.workspace_symbols() fzf().lsp_live_workspace_symbols({ prompt = M.PROMPTS.workspace_symbols }) end
 function M.diagnostics_buffer() fzf().diagnostics_document({ prompt = M.PROMPTS.diagnostics_buffer }) end
 function M.diagnostics_workspace() fzf().diagnostics_workspace({ prompt = M.PROMPTS.diagnostics_workspace }) end
-function M.global_search() fzf().live_grep({ cwd = M.workspace_root(), prompt = M.PROMPTS.global_search }) end
+function M.global_search() fzf().live_grep({ cwd = root(), prompt = M.PROMPTS.global_search }) end
 function M.command_palette() require('config.commands').pick() end
 function M.resume() fzf().resume() end
 

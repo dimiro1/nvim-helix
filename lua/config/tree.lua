@@ -7,7 +7,7 @@ function M.toggle()
   if api.tree.is_visible() then
     api.tree.close()
   else
-    api.tree.open({ path = require('config.pickers').workspace_root(), find_file = true })
+    api.tree.open({ path = require('config.worktrees').workspace_root(), find_file = true })
   end
 end
 

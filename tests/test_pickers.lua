@@ -11,33 +11,6 @@ local T = MiniTest.new_set({
 
 local eq = MiniTest.expect.equality
 
-T['workspace_root finds the vcs root'] = function()
-  local root = child.lua_get([[(function()
-    local tmp = vim.fn.tempname()
-    vim.fn.mkdir(tmp .. '/proj/.git', 'p')
-    vim.fn.mkdir(tmp .. '/proj/sub', 'p')
-    vim.cmd.edit(tmp .. '/proj/sub/file.txt')
-    local got = require('config.pickers').workspace_root()
-    -- realpath both sides: macOS tempdirs live behind the /var symlink
-    return {
-      got = vim.uv.fs_realpath(got),
-      want = vim.uv.fs_realpath(tmp .. '/proj'),
-    }
-  end)()]])
-  eq(root.got, root.want)
-end
-
-T['workspace_root falls back to cwd without vcs'] = function()
-  local root = child.lua_get([[(function()
-    local tmp = vim.fn.tempname()
-    vim.fn.mkdir(tmp .. '/plain', 'p')
-    vim.fn.chdir(tmp .. '/plain')
-    vim.cmd.enew()
-    return { got = require('config.pickers').workspace_root(), want = vim.uv.cwd() }
-  end)()]])
-  eq(root.got, root.want)
-end
-
 T['the core picker set is wired'] = function()
   local missing = child.lua_get([[(function()
     local names = {

@@ -13,7 +13,7 @@ local eq = MiniTest.expect.equality
 
 T['the explorer is wired'] = function()
   local missing = child.lua_get([[(function()
-    local names = { 'dir_entries', 'explorer', 'directories', 'explorer_root', 'explorer_buffer_dir' }
+    local names = { 'dir_entries', 'explorer', 'directories', 'explorer_buffer_dir' }
     local explorer, out = require('config.explorer'), {}
     for _, name in ipairs(names) do
       if type(explorer[name]) ~= 'function' then table.insert(out, name) end

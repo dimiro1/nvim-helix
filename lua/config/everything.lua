@@ -183,7 +183,7 @@ function M.everything_opts(root)
 end
 
 function M.pick()
-  local root = require('config.pickers').workspace_root()
+  local root = require('config.worktrees').workspace_root()
   local bufnr = vim.api.nvim_get_current_buf()
   local symbols = {}
   if next(vim.lsp.get_clients({ bufnr = bufnr })) then

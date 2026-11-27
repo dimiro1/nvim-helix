@@ -75,7 +75,7 @@ end
 
 T['pickers use the tree root while the sidebar is focused'] = function()
   open_tree()
-  eq(child.lua_get([[require('config.pickers').workspace_root() == tree_fixture.root]]), true)
+  eq(child.lua_get([[require('config.worktrees').workspace_root() == tree_fixture.root]]), true)
 end
 
 T['the tree shows dotfiles and hides git metadata and ignored files'] = function()

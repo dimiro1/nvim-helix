@@ -57,6 +57,68 @@ T['in a live instance'] = MiniTest.new_set({
   },
 })
 
+T['in a live instance']['workspace_root finds the vcs root'] = function()
+  local root = child.lua_get([[(function()
+    local tmp = vim.fn.tempname()
+    vim.fn.mkdir(tmp .. '/proj/.git', 'p')
+    vim.fn.mkdir(tmp .. '/proj/sub', 'p')
+    vim.cmd.edit(tmp .. '/proj/sub/file.txt')
+    local got = require('config.worktrees').workspace_root()
+    -- realpath both sides: macOS tempdirs live behind the /var symlink
+    return {
+      got = vim.uv.fs_realpath(got),
+      want = vim.uv.fs_realpath(tmp .. '/proj'),
+    }
+  end)()]])
+  eq(root.got, root.want)
+end
+
+T['in a live instance']['workspace_root falls back to cwd without vcs'] = function()
+  local root = child.lua_get([[(function()
+    local tmp = vim.fn.tempname()
+    vim.fn.mkdir(tmp .. '/plain', 'p')
+    vim.fn.chdir(tmp .. '/plain')
+    vim.cmd.enew()
+    return { got = require('config.worktrees').workspace_root(), want = vim.uv.cwd() }
+  end)()]])
+  eq(root.got, root.want)
+end
+
+T['in a live instance']['workspace_root follows the buffer, current_root the cwd'] = function()
+  local got = child.lua_get([[(function()
+    local tmp = vim.fn.tempname()
+    for _, repo in ipairs({ 'a', 'b' }) do
+      vim.fn.mkdir(tmp .. '/' .. repo .. '/.git', 'p')
+    end
+    -- realpath: macOS tempdirs live behind the /var symlink
+    tmp = assert(vim.uv.fs_realpath(tmp))
+    vim.fn.chdir(tmp .. '/a')
+    vim.cmd.edit(tmp .. '/b/file.txt')
+    local wt = require('config.worktrees')
+    return {
+      workspace = vim.uv.fs_realpath(wt.workspace_root()) == tmp .. '/b',
+      current = vim.uv.fs_realpath(wt.current_root()) == tmp .. '/a',
+    }
+  end)()]])
+  eq(got, { workspace = true, current = true })
+end
+
+T['in a live instance']['buffer_dir is the file directory, else cwd'] = function()
+  local got = child.lua_get([[(function()
+    local wt = require('config.worktrees')
+    local tmp = vim.fn.tempname()
+    vim.fn.mkdir(tmp .. '/sub', 'p')
+    vim.cmd.edit(tmp .. '/sub/file.txt')
+    -- realpath both sides: macOS tempdirs live behind the /var symlink
+    local want = vim.uv.fs_realpath(tmp .. '/sub')
+    local named = vim.uv.fs_realpath(wt.buffer_dir()) == want
+    local by_handle = vim.uv.fs_realpath(wt.buffer_dir(vim.api.nvim_get_current_buf())) == want
+    vim.cmd.enew()
+    return { named = named, by_handle = by_handle, nameless = wt.buffer_dir() == vim.uv.cwd() }
+  end)()]])
+  eq(got, { named = true, by_handle = true, nameless = true })
+end
+
 T['in a live instance'][':Worktrees command is registered'] = function()
   eq(child.lua_get([[vim.api.nvim_get_commands({})['Worktrees'] ~= nil]]), true)
 end
