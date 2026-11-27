@@ -53,14 +53,16 @@ M.mode_sources = {
 -- Accent text on the bar (diagnostic counts, diff summary, the modified
 -- flag): each group takes its source's foreground over the StatusLine
 -- background, resolved live in setup() like the mode badges. Painted only
--- on the active window, whose base group is StatusLine.
+-- on the active window, whose base group is StatusLine. The diff counts
+-- take the diff text colors, not the gutter signs': themes tune those as
+-- solid bars against the canvas, and on the bar they can wash out.
 M.accent_sources = {
   StatuslineError = 'DiagnosticError',
   StatuslineWarn = 'DiagnosticWarn',
   StatuslineModified = 'DiagnosticWarn',
-  StatuslineDiffAdd = 'MiniDiffSignAdd',
-  StatuslineDiffChange = 'MiniDiffSignChange',
-  StatuslineDiffDelete = 'MiniDiffSignDelete',
+  StatuslineDiffAdd = 'Added',
+  StatuslineDiffChange = 'Changed',
+  StatuslineDiffDelete = 'Removed',
 }
 
 -- The metadata tail drops parts whose key falls below the window width,

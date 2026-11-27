@@ -559,6 +559,14 @@ T['accent sources']['every tinted group has a fill source'] = function()
   end
 end
 
+T['accent sources']['diff counts use the diff text colors, not the gutter signs'] = function()
+  eq({
+    sl.accent_sources.StatuslineDiffAdd,
+    sl.accent_sources.StatuslineDiffChange,
+    sl.accent_sources.StatuslineDiffDelete,
+  }, { 'Added', 'Changed', 'Removed' })
+end
+
 T['encoding_label'] = MiniTest.new_set()
 
 T['encoding_label']['hides the unremarkable utf-8'] = function()
