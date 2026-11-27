@@ -2,7 +2,8 @@
 -- state — buffers, windows, tabs (a Workspace, see CONTEXT.md). Switching
 -- saves the current workspace via :mksession and restores the target's;
 -- first visit opens the file picker. Switch-only by design: creating and
--- deleting worktrees stays in the terminal, like the rest of git.
+-- deleting worktrees stays in the terminal, like the rest of git. With
+-- Worktrunk (`wt`) installed, the list also shows each worktree's status.
 local M = {}
 
 -- Parse `git worktree list --porcelain` output: blocks separated by blank
@@ -35,14 +36,116 @@ function M.parse(lines)
   return out
 end
 
+-- Parse `wt list --format=json` into parse()'s shape plus status: the
+-- uncommitted diff (`added`/`deleted` lines) and commits `ahead`/`behind`
+-- the default branch, named in `base`. Entries without a worktree (branch
+-- rows) are skipped.
+function M.parse_wt(text)
+  local ok, data = pcall(vim.json.decode, text, { luanil = { object = true, array = true } })
+  if not ok or type(data) ~= 'table' or type(data.items) ~= 'table' then
+    return nil
+  end
+  local out = {}
+  local default = data.repo and data.repo.default_branch
+  for _, item in ipairs(data.items) do
+    local tree = item.worktree
+    if tree and tree.path then
+      local diff = tree.changes and tree.changes.diff or {}
+      local base = item.default_branch or {}
+      out[#out + 1] = {
+        path = tree.path,
+        branch = item.branch,
+        head = item.head and item.head.short_sha,
+        detached = tree.detached or nil,
+        added = diff.added,
+        deleted = diff.deleted,
+        ahead = base.ahead,
+        behind = base.behind,
+        base = item.default_branch and default or nil,
+      }
+    end
+  end
+  return out
+end
+
+-- Overridable for tests.
+function M.wt_available()
+  return vim.fn.executable('wt') == 1
+end
+
+-- Worktrees of the repository at `dir` (cwd by default): Worktrunk's list
+-- when `wt` is installed and succeeds, else git's.
 function M.list(dir)
-  local lines = vim.fn.systemlist({
-    'git', '-C', dir or assert(vim.uv.cwd()), 'worktree', 'list', '--porcelain',
-  })
+  dir = dir or assert(vim.uv.cwd())
+  if M.wt_available() then
+    -- vim.system raises when the binary vanished from PATH after the check
+    local ok, proc = pcall(vim.system, { 'wt', '-C', dir, 'list', '--format=json' }, { text = true })
+    local out = ok and proc:wait()
+    local entries = out and out.code == 0 and M.parse_wt(out.stdout or '')
+    if entries then
+      return entries
+    end
+  end
+  local lines = vim.fn.systemlist({ 'git', '-C', dir, 'worktree', 'list', '--porcelain' })
   if vim.v.shell_error ~= 0 then
     return {}
   end
   return M.parse(lines)
+end
+
+-- The status a list entry carries, in words: uncommitted lines
+-- (`+12 -3 uncommitted`) and commits against the default branch (`2 ahead,
+-- 5 behind main`). Zero counts are left out; '' when there is nothing.
+function M.status(wt)
+  local parts = {}
+  local diff = {}
+  if (wt.added or 0) > 0 then
+    diff[#diff + 1] = '+' .. wt.added
+  end
+  if (wt.deleted or 0) > 0 then
+    diff[#diff + 1] = '-' .. wt.deleted
+  end
+  if #diff > 0 then
+    parts[#parts + 1] = table.concat(diff, ' ') .. ' uncommitted'
+  end
+  local ahead, behind = wt.ahead or 0, wt.behind or 0
+  local base = wt.base or 'the default branch'
+  if ahead > 0 and behind > 0 then
+    parts[#parts + 1] = ('%d ahead, %d behind %s'):format(ahead, behind, base)
+  elseif ahead > 0 then
+    parts[#parts + 1] = ('%d ahead of %s'):format(ahead, base)
+  elseif behind > 0 then
+    parts[#parts + 1] = ('%d behind %s'):format(behind, base)
+  end
+  return table.concat(parts, ' · ')
+end
+
+-- Picker rows: name (branch, else short sha), path, then current marker and
+-- status, with the name and path columns padded to line up.
+function M.labels(entries, root)
+  local rows, widths = {}, { 0, 0 }
+  for i, wt in ipairs(entries) do
+    rows[i] = { wt.branch or wt.head or 'detached', vim.fn.fnamemodify(wt.path, ':~') }
+    for col = 1, 2 do
+      widths[col] = math.max(widths[col], vim.fn.strdisplaywidth(rows[i][col]))
+    end
+  end
+  local out = {}
+  for i, wt in ipairs(entries) do
+    local cells = {}
+    for col = 1, 2 do
+      cells[col] = rows[i][col] .. (' '):rep(widths[col] - vim.fn.strdisplaywidth(rows[i][col]))
+    end
+    if root and M.canonical(wt.path) == root then
+      cells[#cells + 1] = '(current)'
+    end
+    local status = M.status(wt)
+    if status ~= '' then
+      cells[#cells + 1] = status
+    end
+    out[i] = vim.trim(table.concat(cells, '  '))
+  end
+  return out
 end
 
 -- The directory a buffer's file lives in; cwd for a nameless buffer.
@@ -143,16 +246,9 @@ function M.pick()
     return vim.notify('no git worktrees here', vim.log.levels.WARN)
   end
   local root = M.canonical(M.current_root())
-  local lines, by_line = {}, {}
-  for _, wt in ipairs(entries) do
-    local label = (wt.branch or wt.head or 'detached')
-      .. '  '
-      .. vim.fn.fnamemodify(wt.path, ':~')
-    if M.canonical(wt.path) == root then
-      label = label .. '  (current)'
-    end
-    lines[#lines + 1] = label
-    by_line[label] = wt.path
+  local lines, by_line = M.labels(entries, root), {}
+  for i, wt in ipairs(entries) do
+    by_line[lines[i]] = wt.path
   end
   require('fzf-lua').fzf_exec(lines, {
     prompt = require('config.pickers').PROMPTS.worktrees,

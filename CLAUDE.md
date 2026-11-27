@@ -51,3 +51,5 @@ fzf, rg, lsof, tree-sitter (CLI, parser builds), gopls,
 typescript-language-server, pyright, jdtls, lua-language-server. CI installs
 all but gopls, jdtls, and lua-language-server (those integration tests
 self-skip); lsof ships preinstalled on macOS and the ubuntu runner image.
+Optional: `wt` (Worktrunk) enriches the worktree list; without it the
+list falls back to git, and the real-`wt` test self-skips.

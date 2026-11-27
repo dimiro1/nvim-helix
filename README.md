@@ -50,6 +50,7 @@ when it's on your `PATH`:
 |---|---|---|
 | `zoxide` | jump to recently visited directories (`Space z`) | `brew install zoxide` |
 | `claude` | Claude Code inside the editor (`:ClaudeCode`) | `brew install --cask claude-code` |
+| `wt` ([Worktrunk](https://worktrunk.dev)) | worktree status in the `Space W` list | `brew install worktrunk` |
 | `lsof` | `:KillPort` | already on macOS and most Linux systems |
 
 ### Updating plugins
@@ -154,6 +155,12 @@ your open files and window layout for the worktree you're leaving and
 restores the ones for the worktree you're entering — like separate editor
 windows, one per branch. The first visit to a worktree opens the file picker.
 Save your changes first; switching is blocked while buffers are unsaved.
+
+With Worktrunk (`wt`) installed, each worktree in the list also says what
+it holds: `+12 -3 uncommitted` (lines added and deleted since the last
+commit) and `2 ahead, 5 behind main` (commits its branch has that `main`
+doesn't, and the reverse). Creating and removing worktrees stays in the
+terminal.
 
 ## The command line
 
