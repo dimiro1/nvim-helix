@@ -359,8 +359,7 @@ function M.build(s)
     .. (s.modified and (' ' .. M.tint('[+]', 'StatuslineModified', s.color)) or '')
     .. (s.readonly and ' [RO]' or '')
   if s.crumbs and s.crumbs ~= '' then
-    -- separator matches config.breadcrumbs.separator
-    extras = extras .. ' › ' .. s.crumbs
+    extras = extras .. require('config.breadcrumbs').separator .. s.crumbs
   end
 
   local segments = {}

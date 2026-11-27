@@ -70,6 +70,16 @@ T['build']['appends the breadcrumb trail to the center segment'] = function()
   )
 end
 
+T['build']['joins file and trail with the breadcrumbs separator'] = function()
+  local crumbs = require('config.breadcrumbs')
+  local saved = crumbs.separator
+  crumbs.separator = ' / '
+  local ok, out = pcall(sl.build, { mode_label = 'NOR', file = 'a.go', crumbs = 'T', line = 1, col = 1 })
+  crumbs.separator = saved
+  eq(ok, true)
+  eq(out, ' NOR %=a.go / T%=1:1 ')
+end
+
 T['build']['hints the dependency a class file comes from'] = function()
   eq(
     sl.build({
