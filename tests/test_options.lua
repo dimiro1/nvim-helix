@@ -15,6 +15,18 @@ T['leader is space'] = function()
   eq(child.lua_get([[vim.g.mapleader]]), ' ')
 end
 
+T['neovide pads the grid on every side'] = function()
+  eq(
+    child.lua_get([[{
+      vim.g.neovide_padding_top,
+      vim.g.neovide_padding_bottom,
+      vim.g.neovide_padding_left,
+      vim.g.neovide_padding_right,
+    }]]),
+    { 15, 15, 15, 15 }
+  )
+end
+
 T['line numbers are relative with absolute cursor line'] = function()
   eq(child.lua_get([[vim.o.number]]), true)
   eq(child.lua_get([[vim.o.relativenumber]]), true)

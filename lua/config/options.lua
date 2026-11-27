@@ -34,6 +34,13 @@ o.wrap = true
 o.linebreak = true
 o.breakindent = true
 
+-- Neovide: keep the grid off the window edges, where the macOS traffic
+-- lights and rounded corners clip the first column and the cmdline.
+-- Plain globals, so a terminal Neovim just ignores them.
+for _, side in ipairs({ 'top', 'bottom', 'left', 'right' }) do
+  vim.g['neovide_padding_' .. side] = 15
+end
+
 -- Indent guides are drawn by mini.indentscope (config.plugins), which marks
 -- only the scope at the cursor rather than every level.
 
