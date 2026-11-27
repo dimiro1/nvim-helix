@@ -12,6 +12,24 @@ local function root()
   return require('config.worktrees').workspace_root()
 end
 
+-- A builtin buffer_or_file previewer whose entries come from
+-- `parse_entry(line)`. The class is built on first preview, so picker opts
+-- can be assembled (and tested) without loading fzf-lua.
+function M.previewer(parse_entry)
+  local class
+  return {
+    _ctor = function()
+      if not class then
+        class = require('fzf-lua.previewer.builtin').buffer_or_file:extend()
+        class.parse_entry = function(_, line)
+          return parse_entry(line)
+        end
+      end
+      return class
+    end,
+  }
+end
+
 -- Prompt labels: every name-driven picker announces itself with a `Name> `
 -- prompt so the surface reads the same everywhere. The modules that build their
 -- own fzf calls (everything, commands, zoxide, worktrees) read their label from

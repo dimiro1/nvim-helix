@@ -102,6 +102,17 @@ T['docs falls back to the definition, then to empty'] = function()
   eq(got.blank, {})
 end
 
+T['preview_entry renders docs as a titled help page'] = function()
+  local got = child.lua_get([[require('config.commands').preview_entry('NoHelpTagCmdXyz', 'body')]])
+  eq(got, { title = ' NoHelpTagCmdXyz ', filetype = 'help', content = { 'body' } })
+end
+
+T['prefill puts the command on the cmdline without running it'] = function()
+  child.lua([[require('config.commands').prefill('echo')]])
+  eq(child.fn.mode(), 'c')
+  eq(child.fn.getcmdline(), 'echo')
+end
+
 T['normalize keeps a defined command over a bare built-in of the same name'] = function()
   local got = child.lua_get([[(function()
     local recs = require('config.commands').normalize(

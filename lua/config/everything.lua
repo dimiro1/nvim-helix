@@ -117,11 +117,7 @@ function M.preview_for(rec)
   if not rec then
     return {}
   elseif rec.kind == 'command' then
-    return {
-      title = ' ' .. rec.cmd_name .. ' ',
-      filetype = 'help',
-      content = require('config.commands').docs(rec.cmd_name, rec.definition),
-    }
+    return require('config.commands').preview_entry(rec.cmd_name, rec.definition)
   elseif rec.kind == 'buffer' then
     return { bufnr = rec.bufnr, path = rec.path, line = rec.line or 1 }
   elseif rec.kind == 'symbol' then
@@ -146,26 +142,13 @@ function M.open(selected)
     pcall(vim.api.nvim_win_set_cursor, 0, { action[3], action[4] })
     vim.cmd('normal! zvzz')
   elseif verb == 'command' then
-    vim.cmd('stopinsert')
-    vim.fn.feedkeys(':' .. action[2], 'nt')
+    require('config.commands').prefill(action[2])
   end
 end
 
--- A buffer_or_file previewer that resolves the record by line index and defers
--- to M.preview_for; built lazily so opts can be assembled without fzf-lua.
-local everything_previewer
-do
-  local class
-  everything_previewer = function()
-    if not class then
-      class = require('fzf-lua.previewer.builtin').buffer_or_file:extend()
-      class.parse_entry = function(_, line)
-        return M.preview_for(M.record_of(line))
-      end
-    end
-    return class
-  end
-end
+local previewer = require('config.pickers').previewer(function(line)
+  return M.preview_for(M.record_of(line))
+end)
 
 -- fzf options as data: rows are `index<TAB>tag<TAB>name`. --with-nth hides the
 -- index column (showing tag + name); --nth limits matching to the name so the
@@ -177,7 +160,7 @@ function M.everything_opts(root)
     prompt = require('config.pickers').PROMPTS.everything,
     cwd = root,
     fzf_opts = { ['--delimiter'] = '\t', ['--with-nth'] = '2..', ['--nth'] = '2' },
-    previewer = { _ctor = everything_previewer },
+    previewer = previewer,
     actions = { default = M.open },
   }
 end

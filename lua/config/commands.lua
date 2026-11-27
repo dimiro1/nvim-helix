@@ -138,24 +138,24 @@ function M.list()
   )
 end
 
--- A previewer that renders a command name's docs; built lazily so the palette
--- opts can be assembled without fzf-lua.
-local commands_previewer
-do
-  local class
-  commands_previewer = function()
-    if not class then
-      class = require('fzf-lua.previewer.builtin').buffer_or_file:extend()
-      class.parse_entry = function(_, name)
-        return { title = ' ' .. name .. ' ', filetype = 'help', content = M.docs(name, M._defs[name]) }
-      end
-    end
-    return class
-  end
+-- The previewer entry showing a command's docs.
+function M.preview_entry(name, definition)
+  return { title = ' ' .. name .. ' ', filetype = 'help', content = M.docs(name, definition) }
 end
 
+-- Put `:name` on the cmdline without running it, so an argument-taking
+-- command can be finished by hand.
+function M.prefill(name)
+  vim.cmd('stopinsert')
+  vim.fn.feedkeys(':' .. name, 'nt')
+end
+
+local previewer = require('config.pickers').previewer(function(name)
+  return M.preview_entry(name, M._defs[name])
+end)
+
 -- Command palette (Space ?): a name list with a docs preview; Enter prefills
--- the cmdline so an argument-taking command can be finished by hand.
+-- the cmdline.
 function M.pick()
   local names = {}
   M._defs = {}
@@ -166,12 +166,11 @@ function M.pick()
   table.sort(names)
   fzf().fzf_exec(names, {
     prompt = require('config.pickers').PROMPTS.command_palette,
-    previewer = { _ctor = commands_previewer },
+    previewer = previewer,
     actions = {
       default = function(selected)
         if selected[1] then
-          vim.cmd('stopinsert')
-          vim.fn.feedkeys(':' .. selected[1], 'nt')
+          M.prefill(selected[1])
         end
       end,
     },

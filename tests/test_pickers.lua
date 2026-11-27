@@ -11,6 +11,23 @@ local T = MiniTest.new_set({
 
 local eq = MiniTest.expect.equality
 
+T['previewer builds its class once, on first use'] = function()
+  local got = child.lua_get([[(function()
+    local loaded_before = package.loaded['fzf-lua.previewer.builtin'] ~= nil
+    local spec = require('config.pickers').previewer(function(line)
+      return { content = { 'entry ' .. line } }
+    end)
+    local loaded_after_spec = package.loaded['fzf-lua.previewer.builtin'] ~= nil
+    local a, b = spec._ctor(), spec._ctor()
+    return {
+      lazy = loaded_before == loaded_after_spec,
+      same = a == b,
+      entry = a.parse_entry(nil, 'x'),
+    }
+  end)()]])
+  eq(got, { lazy = true, same = true, entry = { content = { 'entry x' } } })
+end
+
 T['the core picker set is wired'] = function()
   local missing = child.lua_get([[(function()
     local names = {
