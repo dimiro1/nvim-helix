@@ -5,12 +5,13 @@ local T = MiniTest.new_set({
   hooks = {
     pre_case = function()
       child.restart({ '-u', 'init.lua' })
+      child.cmd('colorscheme anysphere')
     end,
     post_once = child.stop,
   },
 })
 
-T['editor surfaces match the Emacs palette after a real boot'] = function()
+T['editor surfaces match the Emacs palette in a real boot'] = function()
   local result = child.lua_get([[(function()
     local function hl(name)
       return vim.api.nvim_get_hl(0, { name = name, link = false })

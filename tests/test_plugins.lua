@@ -364,14 +364,14 @@ T['hunk navigation uses helix keys'] = function()
   eq(child.lua_get([[vim.fn.maparg('[g', 'n') ~= '']]), true)
 end
 
-T['the colorscheme is anysphere (dark)'] = function()
-  eq(child.lua_get([[vim.g.colors_name]]), 'anysphere')
+T['the colorscheme is modus-vivendi-deuteranopia (dark)'] = function()
+  eq(child.lua_get([[vim.g.colors_name]]), 'modus-vivendi-deuteranopia')
   eq(child.lua_get([[vim.o.background]]), 'dark')
 end
 
 T['local and plugin themes provide loadable colorschemes'] = function()
   -- Oshen's night/day schemes only resolve once its setup has run at boot
-  for _, name in ipairs({ 'anysphere', 'rose-pine', 'melange', 'oshen-night', 'oshen-day' }) do
+  for _, name in ipairs({ 'anysphere', 'modus-vivendi-deuteranopia', 'rose-pine', 'melange', 'oshen-night', 'oshen-day' }) do
     eq(
       child.lua_get(([[pcall(vim.cmd.colorscheme, '%s')]]):format(name)),
       true

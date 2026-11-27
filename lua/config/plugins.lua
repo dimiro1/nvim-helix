@@ -204,9 +204,9 @@ function M.setup()
   -- setup runs.
   require('oshen').setup()
 
-  -- Local port of the user's Emacs theme; load after plugin defaults so
+  -- Local port of the Emacs Modus themes; load after plugin defaults so
   -- the picker, tree, and mini modules share its palette as well.
-  vim.cmd.colorscheme('anysphere')
+  vim.cmd.colorscheme('modus-vivendi-deuteranopia')
 end
 
 return M
