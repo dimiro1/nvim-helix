@@ -36,22 +36,28 @@ M.specs = {
 -- nvim-treesitter's keeps it in lockstep with the plugin's queries.
 M.parsers = { 'go', 'gomod', 'java', 'javascript', 'typescript', 'tsx', 'python', 'lua' }
 
-M.treesitter_filetypes = {
-  'go', 'gomod', 'java', 'javascript', 'javascriptreact',
-  'typescript', 'typescriptreact', 'python', 'lua',
-}
+-- The parser that highlights `filetype`, or nil when it isn't one of
+-- M.parsers. Resolved at FileType time, not setup time: nvim-treesitter's
+-- filetype registrations (typescriptreact -> tsx, …) live in its plugin/
+-- file, which startup sources only after init.lua.
+function M.treesitter_lang(filetype)
+  local lang = vim.treesitter.language.get_lang(filetype)
+  return lang and vim.tbl_contains(M.parsers, lang) and lang or nil
+end
 
 function M.setup()
   vim.pack.add(M.specs)
 
   require('nvim-treesitter').install(M.parsers)
   vim.api.nvim_create_autocmd('FileType', {
-    pattern = M.treesitter_filetypes,
     group = vim.api.nvim_create_augroup('config.treesitter', {}),
     callback = function(args)
-      -- Missing parser (e.g. still compiling on first boot) falls back to
-      -- legacy syntax instead of erroring.
-      pcall(vim.treesitter.start, args.buf)
+      local lang = M.treesitter_lang(args.match)
+      if lang then
+        -- Missing parser (e.g. still compiling on first boot) falls back to
+        -- legacy syntax instead of erroring.
+        pcall(vim.treesitter.start, args.buf, lang)
+      end
     end,
   })
 

@@ -56,28 +56,49 @@ T['installed parsers are discoverable in a clean child'] = function()
   eq(child.lua_get([[vim.treesitter.language.add('go') == true]]), true)
 end
 
-T['treesitter highlighting starts for configured filetypes'] = function()
-  local patterns = child.lua_get([[vim.tbl_map(
-    function(a) return a.pattern end,
-    vim.api.nvim_get_autocmds({ group = 'config.treesitter', event = 'FileType' })
-  )]])
-  eq(#patterns > 0, true)
-  eq(vim.tbl_contains(patterns, 'go'), true)
-  eq(vim.tbl_contains(patterns, 'java'), true)
-  eq(vim.tbl_contains(patterns, 'typescript'), true)
-  eq(vim.tbl_contains(patterns, 'python'), true)
-  eq(vim.tbl_contains(patterns, 'lua'), true)
+T['the treesitter FileType hook is registered'] = function()
+  local count = child.lua_get(
+    [[#vim.api.nvim_get_autocmds({ group = 'config.treesitter', event = 'FileType' })]]
+  )
+  eq(count, 1)
 end
 
-T['every highlighted filetype has a parser queued for install'] = function()
-  -- a filetype in the start autocmd but missing from the install list would
-  -- silently fall back to legacy syntax; pin both lists name java together
-  local parsers = child.lua_get([[require('config.plugins').parsers]])
-  local filetypes = child.lua_get([[require('config.plugins').treesitter_filetypes]])
-  for _, lang in ipairs({ 'go', 'java', 'typescript', 'python', 'lua' }) do
-    eq(vim.tbl_contains(parsers, lang), true, lang)
-    eq(vim.tbl_contains(filetypes, lang), true, lang)
-  end
+T['every installed parser highlights its filetypes'] = function()
+  -- the filetype -> parser map is derived, so the react variants must reach
+  -- the javascript and tsx parsers through nvim-treesitter's registrations
+  local got = child.lua_get([[(function()
+    local p = require('config.plugins')
+    local out = {}
+    for _, ft in ipairs({
+      'go', 'gomod', 'java', 'javascript', 'javascriptreact',
+      'typescript', 'typescriptreact', 'python', 'lua',
+    }) do
+      out[ft] = p.treesitter_lang(ft) or false
+    end
+    return out
+  end)()]])
+  eq(got, {
+    go = 'go', gomod = 'gomod', java = 'java',
+    javascript = 'javascript', javascriptreact = 'javascript',
+    typescript = 'typescript', typescriptreact = 'tsx',
+    python = 'python', lua = 'lua',
+  })
+end
+
+T['filetypes without an installed parser are left to legacy syntax'] = function()
+  eq(child.lua_get([[require('config.plugins').treesitter_lang('markdown') == nil]]), true)
+  eq(child.lua_get([[require('config.plugins').treesitter_lang('text') == nil]]), true)
+end
+
+T['opening a typescriptreact file starts the tsx highlighter'] = function()
+  local lang = child.lua_get([[(function()
+    local path = vim.fn.tempname() .. '.tsx'
+    vim.fn.writefile({ 'export const A = () => <div />' }, path)
+    vim.cmd.edit(path)
+    local hl = vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()]
+    return hl and hl.tree:lang() or false
+  end)()]])
+  eq(lang, 'tsx')
 end
 
 T['mini.clue, mini.pairs, mini.diff, mini.ai, mini.indentscope are set up'] = function()
