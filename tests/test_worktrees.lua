@@ -38,6 +38,109 @@ T['parse']['handles empty input'] = function()
   eq(wt.parse({}), {})
 end
 
+-- Shaped like `wt list --format=json` (schema 2), trimmed to what is read.
+local WT_JSON = vim.json.encode({
+  schema = 2,
+  repo = { default_branch = 'main' },
+  items = {
+    {
+      branch = 'main',
+      head = { short_sha = 'abc123d' },
+      worktree = { path = '/repos/app', main = true, detached = false,
+        changes = { diff = { added = 0, deleted = 0 } } },
+    },
+    {
+      branch = 'feature/login',
+      head = { short_sha = 'def456a' },
+      worktree = { path = '/repos/app.feat', detached = false,
+        changes = { diff = { added = 12, deleted = 3 } } },
+      default_branch = { ahead = 2, behind = 5 },
+    },
+    {
+      branch = vim.NIL,
+      head = { short_sha = '0123abc' },
+      worktree = { path = '/repos/app.review', detached = true,
+        changes = { diff = { added = 0, deleted = 0 } } },
+      default_branch = { ahead = 0, behind = 0 },
+    },
+    -- a branch without a worktree (wt list --branches)
+    { branch = 'stale', head = { short_sha = '9999999' } },
+  },
+})
+
+T['parse_wt'] = MiniTest.new_set()
+
+T['parse_wt']['reads worktrees with their status, skipping branch rows'] = function()
+  eq(wt.parse_wt(WT_JSON), {
+    { path = '/repos/app', branch = 'main', head = 'abc123d', added = 0, deleted = 0 },
+    {
+      path = '/repos/app.feat', branch = 'feature/login', head = 'def456a',
+      added = 12, deleted = 3, ahead = 2, behind = 5, base = 'main',
+    },
+    {
+      path = '/repos/app.review', head = '0123abc', detached = true,
+      added = 0, deleted = 0, ahead = 0, behind = 0, base = 'main',
+    },
+  })
+end
+
+T['parse_wt']['rejects output it cannot read'] = function()
+  eq(wt.parse_wt(''), nil)
+  eq(wt.parse_wt('not json'), nil)
+  eq(wt.parse_wt('{"schema": 2}'), nil)
+end
+
+T['status'] = MiniTest.new_set()
+
+T['status']['spells out uncommitted lines and commits against the default branch'] = function()
+  eq(
+    wt.status({ added = 12, deleted = 3, ahead = 2, behind = 5, base = 'main' }),
+    '+12 -3 uncommitted · 2 ahead, 5 behind main'
+  )
+end
+
+T['status']['leaves out zero counts'] = function()
+  eq(wt.status({ added = 0, deleted = 4, ahead = 0, behind = 0, base = 'main' }), '-4 uncommitted')
+  eq(wt.status({ added = 7, deleted = 0 }), '+7 uncommitted')
+  eq(wt.status({ added = 0, deleted = 0, ahead = 3, behind = 0, base = 'main' }), '3 ahead of main')
+  eq(wt.status({ added = 0, deleted = 0, ahead = 0, behind = 1, base = 'main' }), '1 behind main')
+end
+
+T['status']['is empty for git entries and clean worktrees'] = function()
+  eq(wt.status({ path = '/r', branch = 'main' }), '')
+  eq(wt.status({ added = 0, deleted = 0, ahead = 0, behind = 0, base = 'main' }), '')
+end
+
+T['status']['names the default branch generically when wt did not'] = function()
+  eq(wt.status({ ahead = 1 }), '1 ahead of the default branch')
+end
+
+T['labels'] = MiniTest.new_set()
+
+T['labels']['line up name and path columns, then marker and status'] = function()
+  eq(
+    wt.labels({
+      { path = '/repos/app', branch = 'main', added = 226, deleted = 10, ahead = 0, behind = 0 },
+      { path = '/repos/app.feature', branch = 'feature/login', ahead = 2, behind = 5, base = 'main' },
+      { path = '/r', head = 'abc123d', detached = true },
+      { path = '/d', detached = true },
+    }, '/repos/app'),
+    {
+      'main           /repos/app          (current)  +226 -10 uncommitted',
+      'feature/login  /repos/app.feature  2 ahead, 5 behind main',
+      'abc123d        /r',
+      'detached       /d',
+    }
+  )
+end
+
+T['labels']['match git entries without a root as plain columns'] = function()
+  eq(
+    wt.labels({ { path = '/a', branch = 'main' }, { path = '/a.long', branch = 'f' } }),
+    { 'main  /a', 'f     /a.long' }
+  )
+end
+
 T['session_file'] = MiniTest.new_set()
 
 T['session_file']['is stable and distinct per root'] = function()
@@ -117,6 +220,80 @@ T['in a live instance']['buffer_dir is the file directory, else cwd'] = function
     return { named = named, by_handle = by_handle, nameless = wt.buffer_dir() == vim.uv.cwd() }
   end)()]])
   eq(got, { named = true, by_handle = true, nameless = true })
+end
+
+-- A repo with a second worktree and a fake `wt` first on PATH. The fake
+-- prints `output` and exits with `code`; nil output means no fake at all.
+local function setup_repo_with_fake_wt(output, code)
+  child.lua(
+    [[
+    local output, code = ...
+    local base = vim.fn.tempname()
+    local repo = base .. '/main'
+    vim.fn.mkdir(repo, 'p')
+    local function git(...)
+      local cmd = { 'git', '-C', repo, '-c', 'user.email=t@t', '-c', 'user.name=t' }
+      vim.list_extend(cmd, { ... })
+      vim.fn.system(cmd)
+    end
+    git('init', '-q', '-b', 'main')
+    git('commit', '-q', '--allow-empty', '-m', 'init')
+    git('worktree', 'add', '-q', '-b', 'feat', base .. '/feat')
+    _G.repo = repo
+    if output then
+      local bin = base .. '/bin'
+      vim.fn.mkdir(bin, 'p')
+      vim.fn.writefile({ output }, bin .. '/out.json')
+      vim.fn.writefile({ '#!/bin/sh', 'cat "' .. bin .. '/out.json"', 'exit ' .. code }, bin .. '/wt')
+      vim.fn.setfperm(bin .. '/wt', 'rwxr-xr-x')
+      vim.env.PATH = bin .. ':' .. vim.env.PATH
+    end
+  ]],
+    { output or false, code or 0 }
+  )
+end
+
+local function listed()
+  return child.lua_get([[vim.tbl_map(function(e)
+    return { branch = e.branch, ahead = e.ahead or false }
+  end, require('config.worktrees').list(_G.repo))]])
+end
+
+T['in a live instance']['list uses Worktrunk when wt is installed'] = function()
+  setup_repo_with_fake_wt(WT_JSON, 0)
+  eq(child.lua_get([[require('config.worktrees').wt_available()]]), true)
+  eq(listed(), {
+    { branch = 'main', ahead = false },
+    { branch = 'feature/login', ahead = 2 },
+    { ahead = 0 },
+  })
+end
+
+T['in a live instance']['list falls back to git when wt fails'] = function()
+  setup_repo_with_fake_wt('boom', 1)
+  eq(listed(), { { branch = 'main', ahead = false }, { branch = 'feat', ahead = false } })
+end
+
+T['in a live instance']['list falls back to git when wt prints something unreadable'] = function()
+  setup_repo_with_fake_wt('not json', 0)
+  eq(listed(), { { branch = 'main', ahead = false }, { branch = 'feat', ahead = false } })
+end
+
+T['in a live instance']['list uses git when wt is not installed'] = function()
+  setup_repo_with_fake_wt(nil)
+  child.lua([[require('config.worktrees').wt_available = function() return false end]])
+  eq(listed(), { { branch = 'main', ahead = false }, { branch = 'feat', ahead = false } })
+end
+
+T['in a live instance']['the real wt lists this repo with status'] = function()
+  if vim.fn.executable('wt') == 0 then
+    MiniTest.skip('wt not on PATH')
+  end
+  setup_repo_with_fake_wt(nil)
+  local got = child.lua_get([[vim.tbl_map(function(e)
+    return { branch = e.branch, counted = type(e.added) == 'number' }
+  end, require('config.worktrees').list(_G.repo))]])
+  eq(got, { { branch = 'main', counted = true }, { branch = 'feat', counted = true } })
 end
 
 T['in a live instance'][':Worktrees command is registered'] = function()

@@ -9,3 +9,7 @@ The user switches git worktrees constantly and wants each worktree to own its ed
 - **mini.sessions** — mechanism-only (named sessions); the worktree keying and switch pipeline would still be ours, and raw `mksession` keeps full control. No marginal win.
 
 Per ADR 0004: sessions are native, worktree listing is the git CLI, the picker engine already exists — nothing here is structurally missing from Neovim, so no plugin earns a place.
+
+## Consequences
+
+- With Worktrunk (`wt`) on PATH, the picker lists worktrees from `wt list --format=json` and shows each one's uncommitted diff and ahead/behind against the default branch. Without it, or when it fails, `git worktree list --porcelain` is used as before. `wt switch` itself isn't used: it moves a shell, while a switch here has to save and restore workspaces. Creating and removing stay in the terminal (where `wt` does them).
