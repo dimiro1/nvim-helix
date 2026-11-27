@@ -12,7 +12,7 @@ export _ZO_DATA_DIR := $(XDG)/zoxide
 # isolated state dir: workspace sessions from tests stay out of ~/.local/state
 export XDG_STATE_HOME := $(XDG)/state
 
-.PHONY: bootstrap test run check clean
+.PHONY: bootstrap test run check palettes clean
 
 $(XDG)/config/nvim:
 	mkdir -p $(XDG)/config $(XDG)/zoxide
@@ -39,6 +39,15 @@ run: $(XDG)/config/nvim
 check: $(XDG)/config/nvim
 	nvim --clean --headless "+lua io.write(vim.json.encode({ runtime = { version = 'LuaJIT' }, workspace = { checkThirdParty = false, library = { vim.env.VIMRUNTIME, '\$${3rd}/luv/library' } }, diagnostics = { globals = { 'MiniTest' } } }))" +q > $(XDG)/luarc-check.json 2>/dev/null
 	lua-language-server --check $(CURDIR) --configpath $(XDG)/luarc-check.json --checklevel=Warning
+
+# Regenerate the Modus/Standard palettes from fresh upstream clones. The
+# script reads the Elisp as data; nothing from the clones is executed.
+UPSTREAM := $(XDG)/upstream
+palettes:
+	rm -rf $(UPSTREAM) && mkdir -p $(UPSTREAM)
+	git clone -q --depth 1 https://github.com/protesilaos/modus-themes $(UPSTREAM)/modus-themes
+	git clone -q --depth 1 https://github.com/protesilaos/standard-themes $(UPSTREAM)/standard-themes
+	nvim --clean -l scripts/modus_palettes.lua $(UPSTREAM)/modus-themes $(UPSTREAM)/standard-themes lua/config/modus_palettes.lua
 
 clean:
 	rm -rf $(XDG)

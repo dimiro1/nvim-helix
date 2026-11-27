@@ -238,8 +238,17 @@ the cursor they expand in full below it.
 
 The default theme is **anysphere**: a charcoal background with teal
 keywords, pink strings, and blue types, ported from an Emacs theme of the
-same name ([license](docs/anysphere-LICENSE)). Also installed: `rose-pine`,
-`melange`, `oshen-night`, and `oshen-day` — switch with `:colorscheme`.
+same name ([license](docs/anysphere-LICENSE)). Also installed, from
+Protesilaos Stavrou's Emacs themes ([license](docs/modus-LICENSE)):
+
+- **Modus**, high-contrast and color-blind friendly: `modus-operandi`
+  (light) and `modus-vivendi` (dark), each also as `-tinted`,
+  `-deuteranopia` (red–green), and `-tritanopia` (blue–yellow).
+- **Standard**, the look of plain Emacs: `standard-light`, `standard-dark`,
+  their `-tinted` variants, `standard-adwaita`, and `standard-wombat`.
+
+Plus `rose-pine`, `melange`, `oshen-night`, and `oshen-day` — switch with
+`:colorscheme`.
 
 On terminals that support it (Ghostty, for one), the window's tabs and title
 bar take on the editor's background color.
