@@ -9,3 +9,4 @@ Recreating Helix on Neovim forces dozens of key-conflict decisions. Instead of c
 - `ge`, `ga`, `gm`, `gn`, `gp` keep their Vim meanings; buffer navigation uses Neovim's native `]b`/`[b`, alternate file is `Ctrl-^`.
 - `gw` becomes a daily-driven label jump (flash.nvim; see ADR 0007), knowingly sacrificing Vim's `gw` format-in-place operator — `gq` remains for formatting. Like `gi`, an explicit casualty, not an oversight.
 - `Space h` (Helix: select all references as multiple selections) is out of scope — it depends on Helix's multi-selection model, which this project deliberately excludes.
+- In terminal buffers only, normal-mode `Ctrl-o` goes to the running program (Claude Code's transcript view, for one) and returns to terminal mode. Vim's jump-back there swaps the terminal out of its window, which is never what you want from a terminal. Everywhere else `Ctrl-o` is Vim's jumplist. Unlike `gi`/`gw`, this gives up nothing you'd use.

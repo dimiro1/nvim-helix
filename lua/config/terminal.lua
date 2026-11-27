@@ -3,6 +3,25 @@
 -- mode; Esc Esc leaves terminal-mode.
 local M = {}
 
+-- Normal-mode Ctrl-o in a terminal buffer goes to the program (Claude
+-- Code's transcript view, for one) and returns to terminal mode. Vim's
+-- jump-back would swap the terminal out of its window instead.
+function M.keys(buf)
+  vim.keymap.set('n', '<C-o>', function()
+    vim.api.nvim_chan_send(vim.bo[buf].channel, '\15')
+    vim.cmd.startinsert()
+  end, { buffer = buf, desc = 'Send Ctrl-o to the terminal' })
+end
+
+function M.setup()
+  vim.api.nvim_create_autocmd('TermOpen', {
+    group = vim.api.nvim_create_augroup('config.terminal', {}),
+    callback = function(args)
+      M.keys(args.buf)
+    end,
+  })
+end
+
 M.state = { buf = nil, win = nil }
 
 local function win_open()

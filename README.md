@@ -202,6 +202,11 @@ Already running `claude` in another terminal? Type `/ide` there to connect
 it. When Claude proposes an edit, `:w` accepts it and `:q` rejects it — and
 you can tweak the proposal before saving.
 
+`Ctrl-o` in Claude's window always reaches Claude (its transcript view,
+which you can scroll with the keyboard), even after `Esc Esc` has taken
+you out of typing mode. The same goes for every terminal: there, `Ctrl-o`
+never jumps back to the previous file.
+
 ## Reading the screen
 
 **The status bar** keeps the file name centered, with context on either
